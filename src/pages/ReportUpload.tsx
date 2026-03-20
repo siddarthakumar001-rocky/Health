@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
+import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,11 +32,7 @@ export default function ReportUpload() {
   const fetchOnboarding = async () => {
     if (!user) return;
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/onboarding", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const data = await api.get("/api/onboarding");
       setOnboarding(data);
     } catch (err) {
       console.error(err);
@@ -47,16 +44,7 @@ export default function ReportUpload() {
     if (!user) return;
     setUploading(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/onboarding", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(onboarding)
-      });
-      if (!res.ok) throw new Error("Failed to update");
+      await api.post("/api/onboarding", onboarding);
       toast({ title: "Profile updated successfully" });
       setIsEditing(false);
       fetchOnboarding(); // Refresh data

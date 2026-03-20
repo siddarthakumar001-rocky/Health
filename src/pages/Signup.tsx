@@ -30,10 +30,24 @@ export default function Signup() {
         gender: form.gender,
         emergency_contact: form.emergencyContact,
       });
-      console.log("Signup success");
       
-      toast({ title: "Account created!", description: "You can now sign in." });
-      navigate("/login");
+      // Handle pending onboarding if any
+      const pending = localStorage.getItem("pendingOnboarding");
+      if (pending) {
+        try {
+          const onboardingData = JSON.parse(pending);
+          await api.post("/api/onboarding", onboardingData);
+          localStorage.removeItem("pendingOnboarding");
+          toast({ title: "Welcome!", description: "Account created and profile synced." });
+        } catch (onboardErr) {
+          console.error("Failed to sync onboarding:", onboardErr);
+          toast({ title: "Partial Success", description: "Account created, but profile sync failed. You can update it later." });
+        }
+      } else {
+        toast({ title: "Account created!", description: "Welcome to Health Sync." });
+      }
+
+      navigate("/dashboard");
     } catch (err: any) {
       console.error("Signup failed:", err.message);
       toast({ title: "Signup failed", description: err.message, variant: "destructive" });

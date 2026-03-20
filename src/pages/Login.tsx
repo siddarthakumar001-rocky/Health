@@ -27,6 +27,19 @@ export default function Login() {
       if (onboarding_completed) {
         navigate("/dashboard");
       } else {
+        // Check for pending onboarding from this session
+        const pending = localStorage.getItem("pendingOnboarding");
+        if (pending) {
+          try {
+            await api.post("/api/onboarding", JSON.parse(pending));
+            localStorage.removeItem("pendingOnboarding");
+            toast({ title: "Onboarding Synced", description: "Your assessment was saved after login." });
+            navigate("/dashboard");
+            return;
+          } catch (syncErr) {
+            console.error("Sync failed:", syncErr);
+          }
+        }
         navigate("/onboarding");
       }
     } catch (err: any) {

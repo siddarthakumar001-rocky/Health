@@ -121,69 +121,18 @@ export default function Onboarding() {
   const progress = ((step + 1) / totalSteps) * 100;
 
   const handleFinish = async () => {
-    if (!user) return;
     try {
-      await api.post("/onboarding", {
-        user_id: user.id,
-          age: parseInt(data.age) || 0,
-          gender: data.gender,
-          marital_status: data.marital_status,
-          symptoms: data.common_symptoms,
-          conditions: data.conditions,
-          on_medication: data.on_medication,
-          medication_details: data.medication_details,
-          sleep_hours: data.sleep_hours[0],
-          smoking: data.smoking,
-          alcohol: data.alcohol,
-          exercise: data.physical_exhaustion ? "limited" : "normal",
-          womens_health: data.womens_health,
-          physically_handicapped: data.physically_handicapped,
-          headache_type: data.headache_type,
-          body_pain_location: data.body_pain_location,
-          chest_pain_side: data.chest_pain_side,
-          chest_pressure: data.chest_pressure,
-          stroke_history: data.stroke_history,
-          cardiac_arrest_history: data.cardiac_arrest_history,
-          has_bp: data.has_bp,
-          bp_values: data.bp_values,
-          has_sugar: data.has_sugar,
-          sugar_values: data.sugar_values,
-          low_energy: data.low_energy,
-          proper_sleep: data.proper_sleep,
-          has_blood_report: data.has_blood_report,
-          pain_severity: data.pain_severity,
-          pain_locations: data.pain_locations,
-          wound_scar_marks: data.wound_scar_marks,
-          wound_details: data.wound_details,
-          fractures: data.fractures,
-          fracture_details: data.fracture_details,
-          menstrual_flow: data.menstrual_flow,
-          cycle_duration: data.cycle_duration,
-          pads_per_day: parseInt(data.pads_per_day) || null,
-          menstrual_other_symptoms: data.menstrual_other_symptoms,
-          menopausal: data.menopausal,
-          past_traumatic_history: data.past_traumatic_history,
-          surgical_history: data.surgical_history,
-          medications_history: data.medications_history,
-          physical_exhaustion: data.physical_exhaustion,
-          smoking_duration: data.smoking_duration,
-          smoking_frequency: data.smoking_frequency,
-          alcohol_duration: data.alcohol_duration,
-          alcohol_frequency: data.alcohol_frequency,
-          other_addictions: data.other_addictions,
-          ent_issues: data.ent_issues,
-          ocular_issues: data.ocular_issues,
-          ocular_family_history: data.ocular_family_history,
-          common_symptoms: data.common_symptoms,
-          sexually_active: data.sexually_active === "yes",
-          blood_investigations: data.blood_investigations,
-          imaging_done: data.imaging_done,
-          diet_type: data.diet_type,
-          meals_per_day: parseInt(data.meals_per_day) || 3,
-          food_type: data.food_type,
-          outside_food_intake: data.outside_food_intake,
-        });
-      navigate("/device-connect");
+      if (user) {
+        // Already logged in, sync directly
+        await api.post("/api/onboarding", data);
+        toast({ title: "Assessment complete!", description: "Your health profile has been updated." });
+        navigate("/dashboard");
+      } else {
+        // Not logged in, save and go to signup
+        localStorage.setItem("pendingOnboarding", JSON.stringify(data));
+        toast({ title: "Assessment saved!", description: "Now create your account to finish." });
+        navigate("/signup");
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }

@@ -24,8 +24,8 @@ export default function Alerts() {
   useEffect(() => {
     if (!user) return;
     const fetchAlerts = async () => {
-      const data = await api.get(`/alerts?severity=${filter}`);
-      if (data) setAlerts(data as Alert[]);
+      const res = await api.get(`/api/alerts?user_id=${user.id}`);
+      if (res.data) setAlerts(res.data as Alert[]);
     };
     fetchAlerts();
     
@@ -35,7 +35,7 @@ export default function Alerts() {
   }, [user, filter]);
 
   const resolveAlert = async (id: string) => {
-    await api.patch(`/alerts/${id}/resolve`, {});
+    await api.patch(`/api/alerts/${id}/resolve`);
     setAlerts(prev => prev.map(a => a._id === id ? { ...a, resolved: true } : a));
   };
 

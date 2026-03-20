@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Heart, Thermometer, Wind, Brain, TrendingUp, Clock } from "lucide-react";
+import { Heart, Thermometer, Wind, Brain, TrendingUp, Clock, Smartphone } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import DashboardLayout from "@/components/DashboardLayout";
 import StressGauge from "@/components/StressGauge";
 import { computeStressScore, getStressLevel, getStressColor, getRecommendations } from "@/lib/stress";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
 
 interface HealthReading {
   heart_rate: number;
@@ -22,6 +24,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [readings, setReadings] = useState<HealthReading[]>([]);
   const [latest, setLatest] = useState<HealthReading | null>(null);
+  const [onboarding, setOnboarding] = useState<any>(null);
+  const [device, setDevice] = useState<any>(null);
   const [hasDevice, setHasDevice] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -29,22 +33,30 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        // Check for devices first
-        const devices = await api.get("/devices");
+        // Fetch onboarding and devices in parallel
+        const [devices, onboardingData] = await Promise.all([
+          api.get("/api/devices"),
+          api.get("/api/onboarding").catch(() => null)
+        ]);
         
+        if (onboardingData) setOnboarding(onboardingData);
+
         if (!devices || devices.length === 0) {
           setHasDevice(false);
+          setDevice(null);
           return;
         }
         
         setHasDevice(true);
-        const data = await api.get("/health");
+        setDevice(devices[0]); // Use first device
+        const data = await api.get("/api/health");
         if (data?.length) {
           setReadings(data.reverse());
           setLatest(data[data.length - 1]);
         }
       } catch(err) {
-        console.error(err);
+        console.error("Dashboard data fetch failed:", err);
+        setHasDevice(false);
       }
     };
 
@@ -53,11 +65,21 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Personalized stress metrics from onboarding
+  const symptomCount = onboarding ? (
+    (onboarding.common_symptoms?.length || 0) + 
+    (onboarding.ent_issues?.length || 0) + 
+    (onboarding.ocular_issues?.length || 0) +
+    (onboarding.pain_locations?.length || 0)
+  ) : 0;
+  
+  const sleepHours = onboarding?.sleep_hours?.[0] || 7;
+
   const stressScore = computeStressScore({
     heartRate: latest?.heart_rate,
     temperature: latest?.temperature,
-    symptomCount: 0,
-    sleepHours: 7,
+    symptomCount,
+    sleepHours,
   });
 
   const stressLevel = getStressLevel(stressScore);
@@ -83,10 +105,16 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">Real-time monitoring & AI analysis</p>
           </div>
           {hasDevice && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-2 w-2 rounded-full bg-stress-low pulse-live" />
-              <Clock className="h-3 w-3" />
-              <span>{lastUpdated}</span>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                <Smartphone className="h-3 w-3" />
+                <span>Device: <span className="text-foreground">{device?.device_id || "Connected"}</span></span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="h-2 w-2 rounded-full bg-stress-low pulse-live" />
+                <Clock className="h-3 w-3" />
+                <span>{lastUpdated}</span>
+              </div>
             </div>
           )}
         </div>
@@ -228,10 +256,80 @@ export default function Dashboard() {
                 </div>
               </Card>
             </div>
+            
+            {/* Feedback Section */}
+            <div className="mt-12 border-t pt-8 pb-12">
+               <FeedbackForm userId={user?.id} />
+            </div>
           </>
         )}
       </div>
     </DashboardLayout>
+  );
+}
 
+function FeedbackForm({ userId }: { userId?: string }) {
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userId) return;
+    setSubmitting(true);
+    try {
+      await api.post("/api/feedback", { user_id: userId, rating, comment });
+      toast({ title: "Feedback Sent!", description: "Thank you for helping us improve." });
+      setComment("");
+      setRating(5);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="mx-auto max-w-2xl bg-primary/5 border-primary/10">
+      <CardHeader>
+        <CardTitle className="text-lg">Product Feedback</CardTitle>
+        <CardDescription>How was your experience with HealthPulse AI today?</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Rating</Label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setRating(n)}
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-all ${
+                    rating === n ? "bg-primary text-primary-foreground border-primary scale-110 shadow-md" : "bg-background hover:border-primary/50"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Comments</Label>
+            <textarea
+              className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="What can we improve? (e.g. sensor accuracy, dashboard speed...)"
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              required
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? "Sending..." : "Submit Feedback"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

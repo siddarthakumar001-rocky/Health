@@ -21,9 +21,9 @@ export default function DeviceConnect() {
     if (!user || !deviceId.trim()) return;
     setStatus("connecting");
     try {
-      await api.post("/devices", {
+      await api.post("/api/devices", {
+        user_id: user.id,
         device_id: deviceId.trim(),
-        status: "connected",
       });
       setStatus("connected");
       toast({ title: "Device connected!" });

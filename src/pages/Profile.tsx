@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import DashboardLayout from "@/components/DashboardLayout";
 import { User, Smartphone, FileHeart } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Profile() {
@@ -19,17 +20,12 @@ export default function Profile() {
     if (!user) return;
     const load = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const headers = { "Authorization": `Bearer ${token}` };
-        const [oRes, dRes] = await Promise.all([
-          fetch("http://localhost:5000/api/onboarding", { headers }),
-          fetch("http://localhost:5000/api/devices", { headers })
+        const [onboarding, devices] = await Promise.all([
+          api.get("/api/onboarding"),
+          api.get("/api/devices")
         ]);
-        if (oRes.ok) setOnboarding(await oRes.json());
-        if (dRes.ok) {
-           const dev = await dRes.json();
-           if (dev.length) setDevice(dev[0]);
-        }
+        if (onboarding) setOnboarding(onboarding);
+        if (devices && devices.length) setDevice(devices[0]);
       } catch (err) {
         console.error("Failed to fetch profile details", err);
       }

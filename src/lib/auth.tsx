@@ -46,7 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, metadata?: Record<string, unknown>) => {
-    return await api.post("/api/auth/signup", { email, password, data: metadata });
+    const data = await api.post("/api/auth/register", { email, password, data: metadata });
+    if (data.session?.access_token) {
+      localStorage.setItem("token", data.session.access_token);
+      setUser(data.user);
+    }
+    return data;
   };
 
   const signIn = async (email: string, password: string) => {

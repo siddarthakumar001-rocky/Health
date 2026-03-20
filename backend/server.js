@@ -8,6 +8,7 @@ const authRoutes = require("./routes/authRoutes");
 const deviceRoutes = require("./routes/deviceRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 const onboardingRoutes = require("./routes/onboardingRoutes");
+const feedbackRoutes = require("./routes/feedbackRoutes");
 
 dotenv.config();
 
@@ -17,12 +18,19 @@ const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Routes
 app.use("/api/alerts", alertRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/devices", deviceRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/onboarding", onboardingRoutes);
+app.use("/api/feedback", feedbackRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -36,6 +44,6 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🔥 Server running on port ${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🔥 Server running on http://0.0.0.0:${PORT}`);
 });

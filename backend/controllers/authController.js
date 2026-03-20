@@ -14,7 +14,11 @@ exports.signup = async (req, res) => {
     const newUser = new User({ email, password: hashedPassword, ...data });
     await newUser.save();
 
-    res.status(201).json({ user: { id: newUser._id, email: newUser.email, user_metadata: data } });
+    const token = jwt.sign({ id: newUser._id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.status(201).json({ 
+      session: { access_token: token },
+      user: { id: newUser._id, email: newUser.email, user_metadata: data } 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
