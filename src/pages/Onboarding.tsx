@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Loader2 } from "lucide-react";
 
 const HEADACHE_TYPES = ["Half Headache", "Temporal Headache", "Migraine", "Cluster Headache", "Tension Headache", "Sinus Headache"];
 const BODY_PAIN_LOCATIONS = ["Head", "Neck", "Thorax", "Abdomen", "Upper Limbs", "Lower Limbs", "Back"];
@@ -63,6 +63,7 @@ interface OnboardingData {
 
 export default function Onboarding() {
   const [step, setStep] = useState(0);
+  const [fetching, setFetching] = useState(true);
   const [data, setData] = useState<OnboardingData>({
     age: "", gender: "", marital_status: "", physically_handicapped: false,
     headache_type: "", body_pain_location: [], chest_pain_side: "", chest_pressure: false,
@@ -93,27 +94,49 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  useEffect(() => {
+    const loadOnboarding = async () => {
+      if (!user) {
+        setFetching(false);
+        return;
+      }
+      try {
+        const existing = await api.get("/api/onboarding");
+        if (existing) {
+          setData(prev => ({ ...prev, ...existing }));
+          // Optional: If existing data, maybe start at a further step or show a "Continue" prompt
+        }
+      } catch (err) {
+        console.error("Failed to load onboarding:", err);
+      } finally {
+        setFetching(false);
+      }
+    };
+    loadOnboarding();
+  }, [user]);
+
   const set = <K extends keyof OnboardingData>(key: K, value: OnboardingData[K]) =>
     setData(prev => ({ ...prev, [key]: value }));
 
   const toggleArr = (key: keyof OnboardingData, item: string) => {
     setData(prev => {
-      const arr = prev[key] as string[];
+      const arr = (prev[key] || []) as string[];
       return { ...prev, [key]: arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item] };
     });
   };
 
   // Determine steps based on gender
   const getSteps = () => {
-    const steps = [
+    const baseSteps = [
       "Basic Info", "Pain & Symptoms", "Common Symptoms", "Medical History",
       "Medications & Vitals", "Lifestyle & Sleep", "Physical Exam",
       "ENT & Ocular", "Substance Use",
     ];
-    if (data.gender === "female") steps.push("Women's Health");
-    if (data.marital_status === "married") steps.push("Sexual History");
-    steps.push("Investigations & Imaging", "Diet History");
-    return steps;
+    const middleSteps = [];
+    if (data.gender === "female") middleSteps.push("Women's Health");
+    if (data.marital_status === "married") middleSteps.push("Sexual History");
+    
+    return [...baseSteps, ...middleSteps, "Investigations & Imaging", "Diet History"];
   };
 
   const steps = getSteps();
@@ -123,12 +146,10 @@ export default function Onboarding() {
   const handleFinish = async () => {
     try {
       if (user) {
-        // Already logged in, sync directly
         await api.post("/api/onboarding", data);
         toast({ title: "Assessment complete!", description: "Your health profile has been updated." });
         navigate("/dashboard");
       } else {
-        // Not logged in, save and go to signup
         localStorage.setItem("pendingOnboarding", JSON.stringify(data));
         toast({ title: "Assessment saved!", description: "Now create your account to finish." });
         navigate("/signup");
@@ -142,7 +163,7 @@ export default function Onboarding() {
     <div className="grid grid-cols-2 gap-2">
       {items.map(item => (
         <label key={item} className="flex cursor-pointer items-center gap-2.5 rounded-lg border p-2.5 text-sm transition-colors hover:bg-accent">
-          <Checkbox checked={selected.includes(item)} onCheckedChange={() => onToggle(item)} />
+          <Checkbox checked={selected?.includes(item)} onCheckedChange={() => onToggle(item)} />
           <span>{item}</span>
         </label>
       ))}
@@ -156,442 +177,398 @@ export default function Onboarding() {
     </div>
   );
 
-  const renderStep = () => {
+  const renderStepContent = () => {
     const currentStepName = steps[step];
 
     switch (currentStepName) {
       case "Basic Info":
         return (
-          <>
-            <CardTitle className="font-display">Basic Information</CardTitle>
-            <CardDescription>Tell us about yourself</CardDescription>
-            <div className="mt-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Age</Label>
-                  <Input type="number" value={data.age} onChange={e => set("age", e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Gender</Label>
-                  <Select value={data.gender} onValueChange={v => set("gender", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Age</Label>
+                <Input type="number" value={data.age} onChange={e => set("age", e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Marital Status</Label>
-                <Select value={data.marital_status} onValueChange={v => set("marital_status", v)}>
+                <Label>Gender</Label>
+                <Select value={data.gender} onValueChange={v => set("gender", v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="single">Single / Unmarried</SelectItem>
-                    <SelectItem value="married">Married</SelectItem>
-                    <SelectItem value="divorced">Divorced</SelectItem>
-                    <SelectItem value="widowed">Widowed</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <YesNo label="Are you Physically Handicapped (PH)?" value={data.physically_handicapped} onChange={v => set("physically_handicapped", v)} />
             </div>
-          </>
+            <div className="space-y-2">
+              <Label>Marital Status</Label>
+              <Select value={data.marital_status} onValueChange={v => set("marital_status", v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single / Unmarried</SelectItem>
+                  <SelectItem value="married">Married</SelectItem>
+                  <SelectItem value="divorced">Divorced</SelectItem>
+                  <SelectItem value="widowed">Widowed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <YesNo label="Are you Physically Handicapped (PH)?" value={data.physically_handicapped} onChange={v => set("physically_handicapped", v)} />
+          </div>
         );
 
       case "Pain & Symptoms":
         return (
-          <>
-            <CardTitle className="font-display">Pain & Symptoms</CardTitle>
-            <CardDescription>Describe any pain or discomfort</CardDescription>
-            <div className="mt-6 space-y-5">
-              <div className="space-y-2">
-                <Label>Headache Type</Label>
-                <Select value={data.headache_type} onValueChange={v => set("headache_type", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select type (if any)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Headache</SelectItem>
-                    {HEADACHE_TYPES.map(t => <SelectItem key={t} value={t.toLowerCase().replace(/ /g, "_")}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Body Pain Location(s)</Label>
-                <CheckboxGrid items={BODY_PAIN_LOCATIONS} selected={data.body_pain_location} onToggle={i => toggleArr("body_pain_location", i)} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Chest Pain Side</Label>
-                  <Select value={data.chest_pain_side} onValueChange={v => set("chest_pain_side", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Chest Pain</SelectItem>
-                      <SelectItem value="left">Left</SelectItem>
-                      <SelectItem value="right">Right</SelectItem>
-                      <SelectItem value="center">Center</SelectItem>
-                      <SelectItem value="both">Both Sides</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <YesNo label="Pressure on chest?" value={data.chest_pressure} onChange={v => set("chest_pressure", v)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Pain Severity</Label>
-                <Select value={data.pain_severity} onValueChange={v => set("pain_severity", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Pain</SelectItem>
-                    <SelectItem value="mild">Mild</SelectItem>
-                    <SelectItem value="moderate">Moderate</SelectItem>
-                    <SelectItem value="severe">Severe</SelectItem>
-                    <SelectItem value="very_severe">Very Severe</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <YesNo label="Low Energy?" value={data.low_energy} onChange={v => set("low_energy", v)} />
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label>Headache Type</Label>
+              <Select value={data.headache_type} onValueChange={v => set("headache_type", v)}>
+                <SelectTrigger><SelectValue placeholder="Select type (if any)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Headache</SelectItem>
+                  {HEADACHE_TYPES.map(t => <SelectItem key={t} value={t.toLowerCase().replace(/ /g, "_")}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-          </>
+            <div className="space-y-2">
+              <Label>Body Pain Location(s)</Label>
+              <CheckboxGrid items={BODY_PAIN_LOCATIONS} selected={data.body_pain_location} onToggle={i => toggleArr("body_pain_location", i)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Chest Pain Side</Label>
+                <Select value={data.chest_pain_side} onValueChange={v => set("chest_pain_side", v)}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Chest Pain</SelectItem>
+                    <SelectItem value="left">Left</SelectItem>
+                    <SelectItem value="right">Right</SelectItem>
+                    <SelectItem value="center">Center</SelectItem>
+                    <SelectItem value="both">Both Sides</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <YesNo label="Pressure on chest?" value={data.chest_pressure} onChange={v => set("chest_pressure", v)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Pain Severity</Label>
+              <Select value={data.pain_severity} onValueChange={v => set("pain_severity", v)}>
+                <SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Pain</SelectItem>
+                  <SelectItem value="mild">Mild</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="severe">Severe</SelectItem>
+                  <SelectItem value="very_severe">Very Severe</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <YesNo label="Low Energy?" value={data.low_energy} onChange={v => set("low_energy", v)} />
+          </div>
         );
 
       case "Common Symptoms":
         return (
-          <>
-            <CardTitle className="font-display">Common Symptoms</CardTitle>
-            <CardDescription>Select any symptoms you're experiencing</CardDescription>
-            <div className="mt-6">
-              <CheckboxGrid items={COMMON_SYMPTOMS} selected={data.common_symptoms} onToggle={i => toggleArr("common_symptoms", i)} />
-            </div>
-          </>
+          <div>
+            <CheckboxGrid items={COMMON_SYMPTOMS} selected={data.common_symptoms} onToggle={i => toggleArr("common_symptoms", i)} />
+          </div>
         );
 
       case "Medical History":
         return (
-          <>
-            <CardTitle className="font-display">Medical History</CardTitle>
-            <CardDescription>Your past medical conditions and history</CardDescription>
-            <div className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Existing Conditions</Label>
-                <CheckboxGrid items={CONDITIONS} selected={data.conditions} onToggle={i => toggleArr("conditions", i)} />
-              </div>
-              <YesNo label="Previous history of Stroke?" value={data.stroke_history} onChange={v => set("stroke_history", v)} />
-              <YesNo label="Previous Cardiac Arrest?" value={data.cardiac_arrest_history} onChange={v => set("cardiac_arrest_history", v)} />
-              <div className="space-y-2">
-                <Label>Past Traumatic History</Label>
-                <Textarea value={data.past_traumatic_history} onChange={e => set("past_traumatic_history", e.target.value)} placeholder="Describe any past traumatic events..." />
-              </div>
-              <div className="space-y-2">
-                <Label>Surgical History</Label>
-                <Textarea value={data.surgical_history} onChange={e => set("surgical_history", e.target.value)} placeholder="List any past surgeries..." />
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Existing Conditions</Label>
+              <CheckboxGrid items={CONDITIONS} selected={data.conditions} onToggle={i => toggleArr("conditions", i)} />
             </div>
-          </>
+            <YesNo label="Previous history of Stroke?" value={data.stroke_history} onChange={v => set("stroke_history", v)} />
+            <YesNo label="Previous Cardiac Arrest?" value={data.cardiac_arrest_history} onChange={v => set("cardiac_arrest_history", v)} />
+            <div className="space-y-2">
+              <Label>Past Traumatic History</Label>
+              <Textarea value={data.past_traumatic_history} onChange={e => set("past_traumatic_history", e.target.value)} placeholder="Describe any past traumatic events..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Surgical History</Label>
+              <Textarea value={data.surgical_history} onChange={e => set("surgical_history", e.target.value)} placeholder="List any past surgeries..." />
+            </div>
+          </div>
         );
 
       case "Medications & Vitals":
         return (
-          <>
-            <CardTitle className="font-display">Medications & Vitals</CardTitle>
-            <CardDescription>Current medications and vital readings</CardDescription>
-            <div className="mt-6 space-y-4">
-              <YesNo label="Currently on any medication?" value={data.on_medication} onChange={v => set("on_medication", v)} />
-              {data.on_medication && (
-                <div className="space-y-2">
-                  <Label>Medication Details</Label>
-                  <Textarea value={data.medication_details} onChange={e => set("medication_details", e.target.value)} placeholder="List your medications..." />
-                </div>
-              )}
+          <div className="space-y-4">
+            <YesNo label="Currently on any medication?" value={data.on_medication} onChange={v => set("on_medication", v)} />
+            {data.on_medication && (
               <div className="space-y-2">
-                <Label>Medications History (past)</Label>
-                <Textarea value={data.medications_history} onChange={e => set("medications_history", e.target.value)} placeholder="Any past medications..." />
+                <Label>Medication Details</Label>
+                <Textarea value={data.medication_details} onChange={e => set("medication_details", e.target.value)} placeholder="List your medications..." />
               </div>
-              <YesNo label="Do you have BP (Blood Pressure issues)?" value={data.has_bp} onChange={v => set("has_bp", v)} />
-              {data.has_bp && (
-                <div className="space-y-2">
-                  <Label>BP Values (if known)</Label>
-                  <Input value={data.bp_values} onChange={e => set("bp_values", e.target.value)} placeholder="e.g. 120/80 mmHg" />
-                </div>
-              )}
-              <YesNo label="Do you have Sugar (Diabetes)?" value={data.has_sugar} onChange={v => set("has_sugar", v)} />
-              {data.has_sugar && (
-                <div className="space-y-2">
-                  <Label>Sugar Values (if known)</Label>
-                  <Input value={data.sugar_values} onChange={e => set("sugar_values", e.target.value)} placeholder="e.g. Fasting: 110 mg/dL" />
-                </div>
-              )}
+            )}
+            <div className="space-y-2">
+              <Label>Medications History (past)</Label>
+              <Textarea value={data.medications_history} onChange={e => set("medications_history", e.target.value)} placeholder="Any past medications..." />
             </div>
-          </>
+            <YesNo label="Do you have BP (Blood Pressure issues)?" value={data.has_bp} onChange={v => set("has_bp", v)} />
+            {data.has_bp && (
+              <div className="space-y-2">
+                <Label>BP Values (if known)</Label>
+                <Input value={data.bp_values} onChange={e => set("bp_values", e.target.value)} placeholder="e.g. 120/80 mmHg" />
+              </div>
+            )}
+            <YesNo label="Do you have Sugar (Diabetes)?" value={data.has_sugar} onChange={v => set("has_sugar", v)} />
+            {data.has_sugar && (
+              <div className="space-y-2">
+                <Label>Sugar Values (if known)</Label>
+                <Input value={data.sugar_values} onChange={e => set("sugar_values", e.target.value)} placeholder="e.g. Fasting: 110 mg/dL" />
+              </div>
+            )}
+          </div>
         );
 
       case "Lifestyle & Sleep":
         return (
-          <>
-            <CardTitle className="font-display">Lifestyle & Sleep</CardTitle>
-            <CardDescription>Your daily habits and sleep pattern</CardDescription>
-            <div className="mt-6 space-y-5">
-              <YesNo label="Do you get proper sleep?" value={data.proper_sleep} onChange={v => set("proper_sleep", v)} />
-              <div className="space-y-2">
-                <Label>Sleep Hours: {data.sleep_hours[0]}h</Label>
-                <Slider value={data.sleep_hours} onValueChange={v => set("sleep_hours", v)} min={1} max={14} step={0.5} />
-              </div>
-              <YesNo label="Physical exhaustion during walk or exercise?" value={data.physical_exhaustion} onChange={v => set("physical_exhaustion", v)} />
+          <div className="space-y-5">
+            <YesNo label="Do you get proper sleep?" value={data.proper_sleep} onChange={v => set("proper_sleep", v)} />
+            <div className="space-y-2">
+              <Label>Sleep Hours: {data.sleep_hours[0]}h</Label>
+              <Slider value={data.sleep_hours} onValueChange={v => set("sleep_hours", v)} min={1} max={14} step={0.5} />
             </div>
-          </>
+            <YesNo label="Physical exhaustion during walk or exercise?" value={data.physical_exhaustion} onChange={v => set("physical_exhaustion", v)} />
+          </div>
         );
 
       case "Physical Exam":
         return (
-          <>
-            <CardTitle className="font-display">Physical Examination</CardTitle>
-            <CardDescription>Wounds, scars, and fractures</CardDescription>
-            <div className="mt-6 space-y-4">
-              <YesNo label="Any wound/scar marks?" value={data.wound_scar_marks} onChange={v => set("wound_scar_marks", v)} />
-              {data.wound_scar_marks && (
-                <div className="space-y-2">
-                  <Label>Wound/Scar Details</Label>
-                  <Textarea value={data.wound_details} onChange={e => set("wound_details", e.target.value)} placeholder="Describe location and type..." />
-                </div>
-              )}
-              <YesNo label="Any fractures?" value={data.fractures} onChange={v => set("fractures", v)} />
-              {data.fractures && (
-                <div className="space-y-2">
-                  <Label>Fracture Details</Label>
-                  <Textarea value={data.fracture_details} onChange={e => set("fracture_details", e.target.value)} placeholder="Describe fracture location and status..." />
-                </div>
-              )}
-            </div>
-          </>
+          <div className="space-y-4">
+            <YesNo label="Any wound/scar marks?" value={data.wound_scar_marks} onChange={v => set("wound_scar_marks", v)} />
+            {data.wound_scar_marks && (
+              <div className="space-y-2">
+                <Label>Wound/Scar Details</Label>
+                <Textarea value={data.wound_details} onChange={e => set("wound_details", e.target.value)} placeholder="Describe location and type..." />
+              </div>
+            )}
+            <YesNo label="Any fractures?" value={data.fractures} onChange={v => set("fractures", v)} />
+            {data.fractures && (
+              <div className="space-y-2">
+                <Label>Fracture Details</Label>
+                <Textarea value={data.fracture_details} onChange={e => set("fracture_details", e.target.value)} placeholder="Describe fracture location and status..." />
+              </div>
+            )}
+          </div>
         );
 
       case "ENT & Ocular":
         return (
-          <>
-            <CardTitle className="font-display">ENT & Eye History</CardTitle>
-            <CardDescription>Ear, Nose, Throat, and Eye related issues</CardDescription>
-            <div className="mt-6 space-y-5">
-              <div className="space-y-2">
-                <Label>ENT Issues</Label>
-                <CheckboxGrid items={ENT_ISSUES} selected={data.ent_issues} onToggle={i => toggleArr("ent_issues", i)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Ocular (Eye) Issues</Label>
-                <CheckboxGrid items={OCULAR_ISSUES} selected={data.ocular_issues} onToggle={i => toggleArr("ocular_issues", i)} />
-              </div>
-              <YesNo label="Family history of eye conditions?" value={data.ocular_family_history} onChange={v => set("ocular_family_history", v)} />
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label>ENT Issues</Label>
+              <CheckboxGrid items={ENT_ISSUES} selected={data.ent_issues} onToggle={i => toggleArr("ent_issues", i)} />
             </div>
-          </>
+            <div className="space-y-2">
+              <Label>Ocular (Eye) Issues</Label>
+              <CheckboxGrid items={OCULAR_ISSUES} selected={data.ocular_issues} onToggle={i => toggleArr("ocular_issues", i)} />
+            </div>
+            <YesNo label="Family history of eye conditions?" value={data.ocular_family_history} onChange={v => set("ocular_family_history", v)} />
+          </div>
         );
 
       case "Substance Use":
         return (
-          <>
-            <CardTitle className="font-display">Substance Use History</CardTitle>
-            <CardDescription>Smoking, alcohol, and other substances</CardDescription>
-            <div className="mt-6 space-y-5">
-              <div className="space-y-2">
-                <Label>Smoking</Label>
-                <Select value={data.smoking} onValueChange={v => set("smoking", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="never">Never</SelectItem>
-                    <SelectItem value="occasionally">Occasionally</SelectItem>
-                    <SelectItem value="regularly">Regularly</SelectItem>
-                    <SelectItem value="quit">Quit</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {data.smoking !== "never" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Duration</Label>
-                    <Input value={data.smoking_duration} onChange={e => set("smoking_duration", e.target.value)} placeholder="e.g. 5 years" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Frequency</Label>
-                    <Input value={data.smoking_frequency} onChange={e => set("smoking_frequency", e.target.value)} placeholder="e.g. 3 per day" />
-                  </div>
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>Alcohol</Label>
-                <Select value={data.alcohol} onValueChange={v => set("alcohol", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="never">Never</SelectItem>
-                    <SelectItem value="occasionally">Occasionally</SelectItem>
-                    <SelectItem value="regularly">Regularly</SelectItem>
-                    <SelectItem value="quit">Quit</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {data.alcohol !== "never" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Duration</Label>
-                    <Input value={data.alcohol_duration} onChange={e => set("alcohol_duration", e.target.value)} placeholder="e.g. 3 years" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Frequency</Label>
-                    <Input value={data.alcohol_frequency} onChange={e => set("alcohol_frequency", e.target.value)} placeholder="e.g. weekends" />
-                  </div>
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>Other Addictions</Label>
-                <Textarea value={data.other_addictions} onChange={e => set("other_addictions", e.target.value)} placeholder="Any other substance use..." />
-              </div>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label>Smoking</Label>
+              <Select value={data.smoking} onValueChange={v => set("smoking", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="never">Never</SelectItem>
+                  <SelectItem value="occasionally">Occasionally</SelectItem>
+                  <SelectItem value="regularly">Regularly</SelectItem>
+                  <SelectItem value="quit">Quit</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </>
+            {data.smoking !== "never" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Duration</Label>
+                  <Input value={data.smoking_duration} onChange={e => set("smoking_duration", e.target.value)} placeholder="e.g. 5 years" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Frequency</Label>
+                  <Input value={data.smoking_frequency} onChange={e => set("smoking_frequency", e.target.value)} placeholder="e.g. 3 per day" />
+                </div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Alcohol</Label>
+              <Select value={data.alcohol} onValueChange={v => set("alcohol", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="never">Never</SelectItem>
+                  <SelectItem value="occasionally">Occasionally</SelectItem>
+                  <SelectItem value="regularly">Regularly</SelectItem>
+                  <SelectItem value="quit">Quit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {data.alcohol !== "never" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Duration</Label>
+                  <Input value={data.alcohol_duration} onChange={e => set("alcohol_duration", e.target.value)} placeholder="e.g. 3 years" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Frequency</Label>
+                  <Input value={data.alcohol_frequency} onChange={e => set("alcohol_frequency", e.target.value)} placeholder="e.g. weekends" />
+                </div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Other Addictions</Label>
+              <Textarea value={data.other_addictions} onChange={e => set("other_addictions", e.target.value)} placeholder="Any other substance use..." />
+            </div>
+          </div>
         );
 
       case "Women's Health":
         return (
-          <>
-            <CardTitle className="font-display">Women's Health</CardTitle>
-            <CardDescription>Menstrual and reproductive health</CardDescription>
-            <div className="mt-6 space-y-4">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Menstrual Flow</Label>
+              <Select value={data.menstrual_flow} onValueChange={v => set("menstrual_flow", v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="heavy">Heavy</SelectItem>
+                  <SelectItem value="irregular">Irregular</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Menstrual Flow</Label>
-                <Select value={data.menstrual_flow} onValueChange={v => set("menstrual_flow", v)}>
+                <Label>Cycle Duration (days)</Label>
+                <Input value={data.cycle_duration} onChange={e => set("cycle_duration", e.target.value)} placeholder="e.g. 28" />
+              </div>
+              <div className="space-y-2">
+                <Label>Pads per Day (1-5)</Label>
+                <Select value={data.pads_per_day} onValueChange={v => set("pads_per_day", v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="moderate">Moderate</SelectItem>
-                    <SelectItem value="heavy">Heavy</SelectItem>
-                    <SelectItem value="irregular">Irregular</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Cycle Duration (days)</Label>
-                  <Input value={data.cycle_duration} onChange={e => set("cycle_duration", e.target.value)} placeholder="e.g. 28" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Pads per Day (1-5)</Label>
-                  <Select value={data.pads_per_day} onValueChange={v => set("pads_per_day", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Other Menstrual Symptoms</Label>
-                <Textarea value={data.menstrual_other_symptoms} onChange={e => set("menstrual_other_symptoms", e.target.value)} placeholder="Cramps, mood changes, etc." />
-              </div>
-              <YesNo label="Menopausal?" value={data.menopausal} onChange={v => set("menopausal", v)} />
-              <div className="space-y-2">
-                <Label>Pregnancy / Reproductive Status</Label>
-                <Select value={data.womens_health} onValueChange={v => set("womens_health", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="na">Not applicable</SelectItem>
-                    <SelectItem value="pregnant">Pregnant</SelectItem>
-                    <SelectItem value="postpartum">Postpartum</SelectItem>
-                    <SelectItem value="trying">Trying to conceive</SelectItem>
+                    {[1, 2, 3, 4, 5].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-          </>
+            <div className="space-y-2">
+              <Label>Other Menstrual Symptoms</Label>
+              <Textarea value={data.menstrual_other_symptoms} onChange={e => set("menstrual_other_symptoms", e.target.value)} placeholder="Cramps, mood changes, etc." />
+            </div>
+            <YesNo label="Menopausal?" value={data.menopausal} onChange={v => set("menopausal", v)} />
+            <div className="space-y-2">
+              <Label>Pregnancy / Reproductive Status</Label>
+              <Select value={data.womens_health} onValueChange={v => set("womens_health", v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="na">Not applicable</SelectItem>
+                  <SelectItem value="pregnant">Pregnant</SelectItem>
+                  <SelectItem value="postpartum">Postpartum</SelectItem>
+                  <SelectItem value="trying">Trying to conceive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         );
 
       case "Sexual History":
         return (
-          <>
-            <CardTitle className="font-display">Sexual History</CardTitle>
-            <CardDescription>This information is confidential</CardDescription>
-            <div className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Are you sexually active?</Label>
-                <Select value={data.sexually_active} onValueChange={v => set("sexually_active", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
-                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Are you sexually active?</Label>
+              <Select value={data.sexually_active} onValueChange={v => set("sexually_active", v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </>
+          </div>
         );
 
       case "Investigations & Imaging":
         return (
-          <>
-            <CardTitle className="font-display">Investigations & Imaging</CardTitle>
-            <CardDescription>Previous blood tests and imaging done</CardDescription>
-            <div className="mt-6 space-y-5">
-              <YesNo label="Have you done any blood investigations before?" value={data.has_blood_report} onChange={v => set("has_blood_report", v)} />
-              {data.has_blood_report && (
-                <div className="space-y-2">
-                  <Label>Blood Investigations Done</Label>
-                  <CheckboxGrid items={BLOOD_INVESTIGATIONS} selected={data.blood_investigations} onToggle={i => toggleArr("blood_investigations", i)} />
-                </div>
-              )}
+          <div className="space-y-5">
+            <YesNo label="Have you done any blood investigations before?" value={data.has_blood_report} onChange={v => set("has_blood_report", v)} />
+            {data.has_blood_report && (
               <div className="space-y-2">
-                <Label>Imaging Done</Label>
-                <CheckboxGrid items={IMAGING_TYPES} selected={data.imaging_done} onToggle={i => toggleArr("imaging_done", i)} />
+                <Label>Blood Investigations Done</Label>
+                <CheckboxGrid items={BLOOD_INVESTIGATIONS} selected={data.blood_investigations} onToggle={i => toggleArr("blood_investigations", i)} />
               </div>
+            )}
+            <div className="space-y-2">
+              <Label>Imaging Done</Label>
+              <CheckboxGrid items={IMAGING_TYPES} selected={data.imaging_done} onToggle={i => toggleArr("imaging_done", i)} />
             </div>
-          </>
+          </div>
         );
 
       case "Diet History":
         return (
-          <>
-            <CardTitle className="font-display">Diet History</CardTitle>
-            <CardDescription>Your food habits and nutrition</CardDescription>
-            <div className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Diet Type</Label>
-                <Select value={data.diet_type} onValueChange={v => set("diet_type", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="veg">Vegetarian</SelectItem>
-                    <SelectItem value="nonveg">Non-Vegetarian</SelectItem>
-                    <SelectItem value="vegan">Vegan</SelectItem>
-                    <SelectItem value="eggetarian">Eggetarian</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Meals per Day</Label>
-                <Select value={data.meals_per_day} onValueChange={v => set("meals_per_day", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5].map(n => <SelectItem key={n} value={String(n)}>{n} meals</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Type of Food / Amount Description</Label>
-                <Textarea value={data.food_type} onChange={e => set("food_type", e.target.value)} placeholder="Describe your typical food intake..." />
-              </div>
-              <div className="space-y-2">
-                <Label>Outside / Junk Food Intake</Label>
-                <Select value={data.outside_food_intake} onValueChange={v => set("outside_food_intake", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="never">Never</SelectItem>
-                    <SelectItem value="rarely">Rarely</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Diet Type</Label>
+              <Select value={data.diet_type} onValueChange={v => set("diet_type", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="veg">Vegetarian</SelectItem>
+                  <SelectItem value="nonveg">Non-Vegetarian</SelectItem>
+                  <SelectItem value="vegan">Vegan</SelectItem>
+                  <SelectItem value="eggetarian">Eggetarian</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </>
+            <div className="space-y-2">
+              <Label>Meals per Day</Label>
+              <Select value={data.meals_per_day} onValueChange={v => set("meals_per_day", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5].map(n => <SelectItem key={n} value={String(n)}>{n} meals</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Type of Food / Amount Description</Label>
+              <Textarea value={data.food_type} onChange={e => set("food_type", e.target.value)} placeholder="Describe your typical food intake..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Outside / Junk Food Intake</Label>
+              <Select value={data.outside_food_intake} onValueChange={v => set("outside_food_intake", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="never">Never</SelectItem>
+                  <SelectItem value="rarely">Rarely</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         );
 
       default:
         return null;
     }
   };
+
+  if (fetching) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const isLastStep = step === totalSteps - 1;
 
@@ -605,10 +582,21 @@ export default function Onboarding() {
         </div>
         <Progress value={progress} className="mb-6" />
 
-        <Card>
-          <CardHeader className="max-h-[55vh] overflow-y-auto">{renderStep()}</CardHeader>
-          <CardContent>
-            <div className="flex justify-between">
+        <Card className="flex flex-col h-full max-h-[85vh]">
+          <CardHeader className="flex-shrink-0">
+            <CardTitle className="font-display">{steps[step]}</CardTitle>
+            <CardDescription>
+              {step === 0 ? "Tell us about yourself" : 
+               step === 1 ? "Describe any pain or discomfort" :
+               step === 2 ? "Select any symptoms you're experiencing" :
+               "Please provide the following details"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-y-auto pt-0 pb-6">
+            {renderStepContent()}
+          </CardContent>
+          <div className="p-6 pt-0 border-t bg-background mt-auto flex-shrink-0">
+            <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={() => setStep(s => s - 1)} disabled={step === 0}>
                 <ChevronLeft className="mr-1 h-4 w-4" /> Back
               </Button>
@@ -622,7 +610,7 @@ export default function Onboarding() {
                 </Button>
               )}
             </div>
-          </CardContent>
+          </div>
         </Card>
       </div>
     </div>

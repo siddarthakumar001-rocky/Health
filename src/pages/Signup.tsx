@@ -47,7 +47,7 @@ export default function Signup() {
         toast({ title: "Account created!", description: "Welcome to Health Sync." });
       }
 
-      navigate("/dashboard");
+      navigate("/onboarding");
     } catch (err: any) {
       console.error("Signup failed:", err.message);
       toast({ title: "Signup failed", description: err.message, variant: "destructive" });

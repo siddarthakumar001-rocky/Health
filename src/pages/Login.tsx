@@ -24,24 +24,8 @@ export default function Login() {
       const { onboarding_completed } = await signIn(email, password);
       console.log("Login success");
       
-      if (onboarding_completed) {
-        navigate("/dashboard");
-      } else {
-        // Check for pending onboarding from this session
-        const pending = localStorage.getItem("pendingOnboarding");
-        if (pending) {
-          try {
-            await api.post("/api/onboarding", JSON.parse(pending));
-            localStorage.removeItem("pendingOnboarding");
-            toast({ title: "Onboarding Synced", description: "Your assessment was saved after login." });
-            navigate("/dashboard");
-            return;
-          } catch (syncErr) {
-            console.error("Sync failed:", syncErr);
-          }
-        }
-        navigate("/onboarding");
-      }
+      // Force onboarding check on every login
+      navigate("/onboarding");
     } catch (err: any) {
       console.error("Login failed:", err.message);
       toast({ title: "Login failed", description: err.message, variant: "destructive" });
