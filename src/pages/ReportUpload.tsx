@@ -9,11 +9,12 @@ import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, User, ClipboardList, Activity, Heart, ShieldAlert, Zap, Stethoscope, Eye, Wind, Refrigerator } from "lucide-react";
+import { FileText, Upload, User, ClipboardList, Activity, Heart, ShieldAlert, Zap, Stethoscope, Eye, Wind, Refrigerator, CheckCircle2, AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { extractTextFromPDF, parseBloodReport, type ParsedResult } from "@/lib/pdfParser";
 
 export default function ReportUpload() {
   const [file, setFile] = useState<File | null>(null);
@@ -21,6 +22,9 @@ export default function ReportUpload() {
   const [onboarding, setOnboarding] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState<ParsedResult[]>([]);
+  const [rawText, setRawText] = useState("");
+  const [analyzed, setAnalyzed] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -58,8 +62,45 @@ export default function ReportUpload() {
   const handleUpload = async () => {
     if (!user) return;
     setUploading(true);
-    toast({ title: "Feature coming soon", description: "Manual report entry saved locally for now." });
-    setUploading(false);
+    setAnalyzed(false);
+    setAnalysisResults([]);
+    setRawText("");
+
+    try {
+      if (file && file.type === "application/pdf") {
+        toast({ title: "Analyzing PDF...", description: "Extracting blood test values from your report." });
+        const text = await extractTextFromPDF(file);
+        setRawText(text);
+        const results = parseBloodReport(text);
+        setAnalysisResults(results);
+        setAnalyzed(true);
+
+        if (results.length > 0) {
+          // Auto-fill manual fields if found
+          const hb = results.find(r => r.name === "Hemoglobin");
+          const sugar = results.find(r => r.name === "Fasting Blood Sugar" || r.name === "Random Blood Sugar");
+          const chol = results.find(r => r.name === "Total Cholesterol");
+          setValues({
+            hemoglobin: hb?.value?.toString() || values.hemoglobin,
+            sugar: sugar?.value?.toString() || values.sugar,
+            cholesterol: chol?.value?.toString() || values.cholesterol,
+          });
+          toast({ title: `Analysis Complete`, description: `Found ${results.length} parameters in your report.` });
+        } else {
+          toast({ title: "No values detected", description: "Could not extract blood test values from this PDF. Try manual entry.", variant: "destructive" });
+        }
+      } else if (file) {
+        toast({ title: "Unsupported format", description: "Please upload a PDF file for analysis.", variant: "destructive" });
+      } else {
+        // Manual entry only
+        toast({ title: "Values saved", description: "Manual report entry recorded." });
+      }
+    } catch (err: any) {
+      console.error("PDF analysis error:", err);
+      toast({ title: "Analysis failed", description: err.message || "Could not process the PDF.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const DataRow = ({ label, value }: { label: string; value: any }) => (
@@ -357,10 +398,95 @@ export default function ReportUpload() {
                 </div>
 
                 <Button onClick={handleUpload} className="w-full py-8 rounded-3xl text-xl font-display gradient-primary shadow-2xl hover:scale-[1.01] active:scale-95 transition-all group" disabled={uploading}>
-                  {uploading ? "Analyzing Report..." : "Submit for Heart Sync"}
+                  {uploading ? "Analyzing Report..." : "Analyze Report"}
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Analysis Results */}
+            {analyzed && analysisResults.length > 0 && (
+              <Card className="border-none shadow-premium bg-background/50 backdrop-blur-sm mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <CardHeader className="border-b bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <div>
+                        <CardTitle className="text-xl">Blood Report Analysis</CardTitle>
+                        <CardDescription>{analysisResults.length} parameters detected from your PDF</CardDescription>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="px-3 py-1 rounded-full bg-green-500/10 text-green-600 text-xs font-bold">
+                        {analysisResults.filter(r => r.status === "normal").length} Normal
+                      </span>
+                      <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-600 text-xs font-bold">
+                        {analysisResults.filter(r => r.status !== "normal").length} Abnormal
+                      </span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/20 text-left font-medium text-muted-foreground">
+                          <th className="p-4">Parameter</th>
+                          <th className="p-4 text-center">Your Value</th>
+                          <th className="p-4 text-center">Normal Range</th>
+                          <th className="p-4 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {analysisResults.map((r) => (
+                          <tr key={r.name} className={`transition-colors ${
+                            r.status === "high" ? "bg-red-500/5" : r.status === "low" ? "bg-amber-500/5" : ""
+                          }`}>
+                            <td className="p-4 font-semibold">{r.name}</td>
+                            <td className="p-4 text-center">
+                              <span className={`text-base font-bold ${
+                                r.status === "normal" ? "text-green-600" :
+                                r.status === "high" ? "text-red-600" : "text-amber-600"
+                              }`}>
+                                {r.value}
+                              </span>
+                              <span className="text-xs text-muted-foreground ml-1">{r.unit}</span>
+                            </td>
+                            <td className="p-4 text-center text-muted-foreground text-xs">{r.normalRange} {r.unit}</td>
+                            <td className="p-4 text-center">
+                              {r.status === "normal" ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-500/10 text-green-600 text-xs font-bold">
+                                  <CheckCircle2 className="h-3 w-3" /> Normal
+                                </span>
+                              ) : r.status === "high" ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-500/10 text-red-600 text-xs font-bold">
+                                  <ArrowUp className="h-3 w-3" /> High
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 text-xs font-bold">
+                                  <ArrowDown className="h-3 w-3" /> Low
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {analyzed && analysisResults.length === 0 && (
+              <Card className="border-none shadow-premium bg-background/50 backdrop-blur-sm mt-8">
+                <CardContent className="p-12 text-center">
+                  <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-bold mb-2">No Values Detected</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    We couldn't automatically extract blood test values from this PDF. This may happen with scanned reports or non-standard formats. Please use the manual entry fields above.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

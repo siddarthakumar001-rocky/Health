@@ -1,41 +1,45 @@
-const API = import.meta.env.VITE_API_URL;
+import axios from "axios";
 
-const getHeaders = () => {
-    const token = localStorage.getItem("token");
-    return {
-        "Content-Type": "application/json",
-        ...(token && { "Authorization": `Bearer ${token}` }),
-    };
-};
+const API_URL = import.meta.env.VITE_API_URL || "https://health-931r.onrender.com";
 
-const request = async (method, url, data) => {
-    const headers = getHeaders();
-    try {
-        console.log(`[API Request] ${method} ${url}`, data || "");
-        
-        const res = await fetch(`${API}${url}`, {
-            method,
-            headers,
-            body: data ? JSON.stringify(data) : undefined,
-        });
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-        const result = await res.json().catch(() => ({}));
-        console.log(`[API Response] ${method} ${url} Status: ${res.status}`, result);
+// Request interceptor for tokens
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  const adminToken = localStorage.getItem("admin_token");
+  const role = localStorage.getItem("userRole");
 
-        if (!res.ok) {
-            throw new Error(result.error || result.message || `${method} request failed with status ${res.status}`);
-        }
-        return result;
-    } catch (err) {
-        console.error(`[API Error] ${method} ${url}:`, err.message);
-        throw err;
-    }
-};
+  // If calling an admin route OR user has admin role, use admin_token if available
+  const isAdminPath = config.url.startsWith("/api/admin");
+  const activeToken = (isAdminPath || role === "admin") ? adminToken : token;
 
-export const api = {
-    get: (url) => request("GET", url),
-    post: (url, data) => request("POST", url, data),
-    patch: (url, data) => request("PATCH", url, data),
-    put: (url, data) => request("PUT", url, data),
-    delete: (url) => request("DELETE", url),
-};
+  if (activeToken) {
+    config.headers.Authorization = `Bearer ${activeToken}`;
+  }
+  
+  return config;
+});
+
+// Response interceptor for easy data access and error handling
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} Status: ${response.status}`, response.data);
+    return response.data;
+  },
+  (error) => {
+    const method = error.config?.method?.toUpperCase();
+    const url = error.config?.url;
+    const message = error.response?.data?.error || error.response?.data?.message || error.message;
+    console.error(`[API Error] ${method} ${url}:`, message);
+    return Promise.reject(new Error(message));
+  }
+);
+
+export { api };
+export default api;

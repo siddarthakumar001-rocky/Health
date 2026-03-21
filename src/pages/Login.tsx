@@ -16,16 +16,30 @@ export default function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const searchParams = new URLSearchParams(window.location.search);
+  const isAdminRequest = searchParams.get("admin") === "true";
+
+  useState(() => {
+    if (isAdminRequest) {
+      setEmail("admin");
+      setPassword("admin@@@123");
+    }
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { onboarding_completed } = await signIn(email, password);
-      console.log("Login success");
+      const { onboarding_completed, role } = await signIn(email, password);
+      console.log("Login success", role);
       
-      // Force onboarding check on every login
-      navigate("/onboarding");
+      if (role === "admin") {
+        navigate("/admin");
+      } else if (onboarding_completed) {
+        navigate("/dashboard");
+      } else {
+        navigate("/onboarding");
+      }
     } catch (err: any) {
       console.error("Login failed:", err.message);
       toast({ title: "Login failed", description: err.message, variant: "destructive" });

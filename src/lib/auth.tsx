@@ -5,6 +5,7 @@ import { api } from "@/services/api";
 export interface User {
   id: string;
   email: string;
+  role: string;
   user_metadata?: {
     name?: string;
     phone?: string;
@@ -18,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signUp: (email: string, password: string, metadata?: Record<string, unknown>) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ onboarding_completed: boolean }>;
+  signIn: (email: string, password: string) => Promise<{ onboarding_completed: boolean; role: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("token", data.session.access_token);
       setUser(data.user);
     }
-    return { onboarding_completed: data.onboarding_completed };
+    return { onboarding_completed: data.onboarding_completed, role: data.user.role };
   };
 
   const signOut = async () => {
@@ -99,4 +100,31 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   return user ? <>{children}</> : null;
+}
+
+export function AdminRoute({ children }: { children: React.ReactNode }) {
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const adminToken = localStorage.getItem("admin_token");
+    
+    if (!adminToken) {
+      navigate("/admin-login");
+    } else {
+      setIsAdmin(true);
+    }
+    setLoading(false);
+  }, [navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  return isAdmin ? <>{children}</> : null;
 }

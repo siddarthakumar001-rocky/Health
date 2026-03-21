@@ -19,6 +19,8 @@ interface HealthReading {
   timestamp: string;
 }
 
+import Feedback from "@/components/Feedback";
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +35,6 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        // Fetch onboarding and devices in parallel
         const [devices, onboardingData] = await Promise.all([
           api.get("/api/devices"),
           api.get("/api/onboarding").catch(() => null)
@@ -48,7 +49,7 @@ export default function Dashboard() {
         }
         
         setHasDevice(true);
-        setDevice(devices[0]); // Use first device
+        setDevice(devices[0]);
         const data = await api.get("/api/health");
         if (data?.length) {
           setReadings(data.reverse());
@@ -65,7 +66,6 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Personalized stress metrics from onboarding
   const symptomCount = onboarding ? (
     (onboarding.common_symptoms?.length || 0) + 
     (onboarding.ent_issues?.length || 0) + 
@@ -93,243 +93,193 @@ export default function Dashboard() {
     stress: computeStressScore({ heartRate: r.heart_rate, temperature: r.temperature }),
   }));
 
-  const lastUpdated = latest ? new Date(latest.timestamp).toLocaleString() : "No data yet";
+  const lastUpdated = latest ? new Date(latest.timestamp).toLocaleString() : null;
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+      <div className="space-y-12">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-bold">Health Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Real-time monitoring & AI analysis</p>
+            <h1 className="font-display text-3xl font-bold tracking-tight">Health Dashboard</h1>
+            <p className="text-muted-foreground">Monitor your vital signs and AI-driven stress analysis.</p>
           </div>
           {hasDevice && (
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-                <Smartphone className="h-3 w-3" />
-                <span>Device: <span className="text-foreground">{device?.device_id || "Connected"}</span></span>
+            <div className="flex flex-col items-start md:items-end gap-1.5 bg-muted/50 p-3 rounded-xl border border-border/50">
+              <div className="flex items-center gap-2 text-xs font-semibold">
+                <Smartphone className="h-3.5 w-3.5 text-primary" />
+                <span>Device: <span className="text-foreground">{device?.device_id || "Active Wearable"}</span></span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <div className="h-2 w-2 rounded-full bg-stress-low pulse-live" />
-                <Clock className="h-3 w-3" />
-                <span>{lastUpdated}</span>
-              </div>
+              {lastUpdated && (
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <Clock className="h-3 w-3" />
+                  <span>Last Sync: {lastUpdated}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {hasDevice === false ? (
-          <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
-            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
-              <TrendingUp className="h-6 w-6 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-card/30 rounded-3xl border-2 border-dashed border-border/50">
+            <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+              <Smartphone className="h-10 w-10 text-primary" />
             </div>
-            <CardTitle className="mb-2">No Device Connected</CardTitle>
-            <p className="max-w-xs mx-auto mb-6 text-sm text-muted-foreground">
-              Connect a health tracking device to start seeing your real-time health data and AI stress analysis.
+            <h2 className="text-2xl font-bold mb-3">No Device Connected</h2>
+            <p className="max-w-md mx-auto mb-8 text-muted-foreground leading-relaxed">
+              Your health dashboard is ready! Connect your ESP32 wearable to start tracking heart rate, SpO2, and temperature in real-time.
             </p>
-            <Button onClick={() => navigate("/device-connect")}>
+            <Button size="lg" onClick={() => navigate("/device-connect")} className="rounded-full px-8 shadow-xl shadow-primary/20">
               Connect a Device
             </Button>
-          </Card>
+          </div>
         ) : hasDevice === null ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <div className="flex h-96 items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <p className="text-sm font-medium animate-pulse text-muted-foreground">Syncing your health data...</p>
+            </div>
           </div>
         ) : (
-          <>
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Vital Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Heart Rate</CardTitle>
-                  <Heart className="h-4 w-4 text-destructive" />
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-card to-destructive/5">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Heart Rate</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                    <Heart className="h-4 w-4 text-destructive" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold font-display">{latest?.heart_rate || "--"}</div>
-                  <p className="text-xs text-muted-foreground">BPM</p>
+                  <div className="text-4xl font-bold font-display">{latest?.heart_rate || "0"}</div>
+                  <p className="text-[10px] font-bold text-destructive mt-1 uppercase">BPM</p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">SpO2</CardTitle>
-                  <Wind className="h-4 w-4 text-chart-5" />
+              <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-card to-blue-500/5">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">SpO2</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <Wind className="h-4 w-4 text-blue-500" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold font-display">{latest?.spo2 || "--"}</div>
-                  <p className="text-xs text-muted-foreground">%</p>
+                  <div className="text-4xl font-bold font-display">{latest?.spo2 || "0"}</div>
+                  <p className="text-[10px] font-bold text-blue-500 mt-1 uppercase">Oxygen Level</p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Temperature</CardTitle>
-                  <Thermometer className="h-4 w-4 text-stress-moderate" />
+              <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-card to-orange-500/5">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Body Temp</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                    <Thermometer className="h-4 w-4 text-orange-500" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold font-display">{latest?.temperature?.toFixed(1) || "--"}</div>
-                  <p className="text-xs text-muted-foreground">°C</p>
+                  <div className="text-4xl font-bold font-display">{latest?.temperature?.toFixed(1) || "0.0"}</div>
+                  <p className="text-[10px] font-bold text-orange-500 mt-1 uppercase">Celsius</p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Stress Level</CardTitle>
-                  <Brain className="h-4 w-4" style={{ color: getStressColor(stressLevel) }} />
+              <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-card to-primary/5">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stress Level</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Brain className="h-4 w-4 text-primary" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-lg font-bold capitalize" style={{ color: getStressColor(stressLevel) }}>
+                  <div className="text-xl font-bold capitalize" style={{ color: getStressColor(stressLevel) }}>
                     {stressLevel}
                   </div>
-                  <p className="text-xs text-muted-foreground">Score: {stressScore}/100</p>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tighter">AI Analysis Score: {stressScore}</p>
                 </CardContent>
               </Card>
             </div>
 
             {/* Gauges + Recommendations */}
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card className="flex flex-col items-center justify-center p-6">
-                <p className="mb-2 text-sm font-medium text-muted-foreground">Stress Score</p>
-                <StressGauge score={stressScore} />
+            <div className="grid gap-6 md:grid-cols-3">
+              <Card className="flex flex-col items-center justify-center p-8 bg-card/50 border-none shadow-premium group">
+                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors group-hover:text-primary">Stress Distribution</p>
+                <div className="relative">
+                   <StressGauge score={stressScore} />
+                   <div className="absolute inset-0 flex items-center justify-center mt-12">
+                      <span className="text-2xl font-bold">{stressScore}</span>
+                   </div>
+                </div>
               </Card>
 
-              <Card className="flex flex-col items-center justify-center p-6">
-                <p className="mb-2 text-sm font-medium text-muted-foreground">Health Score</p>
-                <StressGauge score={healthScore} />
+              <Card className="flex flex-col items-center justify-center p-8 bg-card/50 border-none shadow-premium group">
+                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors group-hover:text-primary">Health index</p>
+                <div className="relative">
+                   <StressGauge score={healthScore} />
+                   <div className="absolute inset-0 flex items-center justify-center mt-12">
+                      <span className="text-2xl font-bold">{healthScore}</span>
+                   </div>
+                </div>
               </Card>
 
-              <Card className="p-6">
-                <p className="mb-3 text-sm font-semibold">Recommendations</p>
-                <ul className="space-y-2">
-                  {recommendations.map((r, i) => (
-                    <li key={i} className="text-sm text-muted-foreground">• {r}</li>
+              <Card className="p-8 bg-card/50 border-none shadow-premium">
+                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                   <TrendingUp className="h-3 w-3" />
+                   Health Recommendations
+                </p>
+                <ul className="space-y-4">
+                  {recommendations.slice(0, 3).map((r, i) => (
+                    <li key={i} className="flex gap-3 text-sm leading-relaxed text-foreground/80">
+                       <span className="h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center shrink-0 font-bold">{i+1}</span>
+                       {r}
+                    </li>
                   ))}
                 </ul>
               </Card>
             </div>
 
             {/* Charts */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="p-4">
-                <p className="mb-2 text-sm font-semibold">Heart Rate Trend</p>
-                <div className="h-[200px] w-full">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card className="p-6 bg-card/50 border-none shadow-premium">
+                <p className="mb-6 text-xs font-bold uppercase tracking-widest text-muted-foreground">Heart Rate Trend (BPM)</p>
+                <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="hr" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border)/0.5)" />
+                      <XAxis dataKey="time" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                      <Line type="monotone" dataKey="hr" stroke="hsl(var(--destructive))" strokeWidth={3} dot={false} animationDuration={1500} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </Card>
 
-              <Card className="p-4">
-                <p className="mb-2 text-sm font-semibold">Temperature Trend</p>
-                <div className="h-[200px] w-full">
+              <Card className="p-6 bg-card/50 border-none shadow-premium">
+                <p className="mb-6 text-xs font-bold uppercase tracking-widest text-muted-foreground">Vitals comparison</p>
+                <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} domain={[35, 40]} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="temp" stroke="hsl(var(--stress-moderate))" strokeWidth={2} dot={false} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border)/0.5)" />
+                      <XAxis dataKey="time" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                      <Line type="monotone" dataKey="temp" stroke="hsl(var(--stress-moderate))" strokeWidth={3} dot={false} animationDuration={1500} />
+                      <Line type="monotone" dataKey="stress" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} animationDuration={1500} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </Card>
+            </div>
 
-              <Card className="p-4">
-                <p className="mb-2 text-sm font-semibold">Stress Trend</p>
-                <div className="h-[200px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="stress" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
-            
-            {/* Feedback Section */}
-            <div className="mt-12 border-t pt-8 pb-12">
-               <FeedbackForm userId={user?.id} />
-            </div>
-          </>
+          </div>
         )}
+
+        {/* Feedback Section - Always Visible */}
+        <div className="pt-20">
+          <Feedback />
+        </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-function FeedbackForm({ userId }: { userId?: string }) {
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
-    setSubmitting(true);
-    try {
-      await api.post("/api/feedback", { user_id: userId, rating, comment });
-      toast({ title: "Feedback Sent!", description: "Thank you for helping us improve." });
-      setComment("");
-      setRating(5);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Card className="mx-auto max-w-2xl bg-primary/5 border-primary/10">
-      <CardHeader>
-        <CardTitle className="text-lg">Product Feedback</CardTitle>
-        <CardDescription>How was your experience with HealthPulse AI today?</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Rating</Label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map(n => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setRating(n)}
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-all ${
-                    rating === n ? "bg-primary text-primary-foreground border-primary scale-110 shadow-md" : "bg-background hover:border-primary/50"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Comments</Label>
-            <textarea
-              className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="What can we improve? (e.g. sensor accuracy, dashboard speed...)"
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Sending..." : "Submit Feedback"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
   );
 }

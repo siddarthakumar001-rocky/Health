@@ -28,35 +28,43 @@ export default function Landing() {
             <span className="font-display text-xl font-bold text-foreground">HealthPulse AI</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" asChild><Link to="/login">Log In</Link></Button>
-            <Button asChild><Link to="/signup">Get Started</Link></Button>
+            <Button variant="outline" className="border-primary/20 hover:bg-primary/5" asChild>
+              <Link to="/login">Log In</Link>
+            </Button>
+            <Button asChild className="shadow-lg shadow-primary/20">
+              <Link to="/signup">Get Started</Link>
+            </Button>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="gradient-hero py-24 md:py-32">
-        <div className="container text-center">
+      <section className="gradient-hero py-24 md:py-32 relative overflow-hidden">
+        <div className="container relative z-10 text-center">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/20">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/20 backdrop-blur-sm">
               <Activity className="h-8 w-8 text-primary" />
             </div>
             <h1 className="font-display text-4xl font-bold tracking-tight text-white md:text-6xl">
               AI-Powered Health
               <br />
-              <span className="text-primary">Monitoring System</span>
+              <span className="text-primary italic">Monitoring System</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-white/70">
+            <p className="mx-auto mt-6 max-w-2xl text-lg text-white/80 leading-relaxed font-light">
               Connect your ESP32 wearable, track vital signs in real-time, and get AI-powered stress analysis with emergency alerts.
             </p>
-            <div className="mt-8 flex justify-center gap-4">
-              <Button size="lg" asChild><Link to="/signup">Start Monitoring</Link></Button>
-              <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
+            <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+              <Button size="lg" asChild className="rounded-full px-8 h-12 text-base font-semibold shadow-xl shadow-primary/30">
+                <Link to="/signup">Start Monitoring</Link>
+              </Button>
+              <Button size="lg" asChild className="rounded-full px-8 h-12 text-base font-semibold shadow-xl shadow-primary/30">
                 <Link to="/login">Sign In</Link>
               </Button>
             </div>
           </motion.div>
         </div>
+        {/* Decorative elements */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(var(--primary),0.05)_0%,transparent_100%)]" />
       </section>
 
       {/* Features */}
@@ -99,13 +107,22 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="container flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Heart className="h-4 w-4 text-primary" />
-            <span>HealthPulse AI</span>
+      <footer className="bg-background border-t py-12">
+        <div className="container px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="flex items-center gap-2">
+              <Activity className="h-6 w-6 text-primary" />
+              <span className="font-display text-lg font-bold">HealthPulse AI</span>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              © 2026 HealthPulse AI. All rights reserved.
+            </div>
+            <div className="flex items-center gap-6">
+              <Button variant="link" size="sm" className="text-muted-foreground hover:text-primary" asChild>
+                <Link to="/admin-login">Admin Login</Link>
+              </Button>
+            </div>
           </div>
-          <p>© 2026 All rights reserved.</p>
         </div>
       </footer>
     </div>

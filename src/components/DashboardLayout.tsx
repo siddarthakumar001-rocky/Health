@@ -4,6 +4,8 @@ import { useAuth } from "@/lib/auth";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useTheme } from "@/context/ThemeContext";
+import { Moon, Sun } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -15,7 +17,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex-1 flex flex-col">
           <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-lg">
             <SidebarTrigger />
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
+              <ThemeToggle />
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/alerts"><Bell className="h-4 w-4" /></Link>
               </Button>
@@ -28,5 +31,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
     </SidebarProvider>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
+      {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+    </Button>
   );
 }

