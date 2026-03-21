@@ -90,6 +90,45 @@ export default function AdminDashboard() {
     navigate("/admin-login");
   };
 
+  const handleEditUser = async (userId: string, currentEmail: string, currentRole: string) => {
+    const newRole = window.prompt(`Change role for ${currentEmail}\n\nCurrent role: ${currentRole}\nEnter new role (user / admin):`, currentRole);
+    if (!newRole || newRole === currentRole) return;
+    try {
+      await api.put(`/api/admin/users/${userId}`, { email: currentEmail, role: newRole });
+      toast({ title: "User Updated", description: `Role changed to ${newRole}` });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Update Failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleResetPassword = async (userId: string, email: string) => {
+    const newPassword = window.prompt(`Reset password for ${email}\n\nEnter new password (min 6 chars):`);
+    if (!newPassword) return;
+    if (newPassword.length < 6) {
+      toast({ title: "Too Short", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    try {
+      await api.patch(`/api/admin/users/${userId}/password`, { password: newPassword });
+      toast({ title: "Password Reset", description: `Password updated for ${email}` });
+    } catch (err: any) {
+      toast({ title: "Reset Failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, email: string) => {
+    const confirmed = window.confirm(`Are you sure you want to DELETE user:\n${email}\n\nThis action cannot be undone!`);
+    if (!confirmed) return;
+    try {
+      await api.delete(`/api/admin/users/${userId}`);
+      toast({ title: "User Deleted", description: `${email} has been removed.` });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Delete Failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   const filteredUsers = users.filter(u => 
     u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.role.toLowerCase().includes(searchTerm.toLowerCase())
@@ -211,14 +250,14 @@ export default function AdminDashboard() {
                       <td className="py-4 pr-4 text-muted-foreground">
                         {format(new Date(u.createdAt), "MMM d, yyyy")}
                       </td>
-                      <td className="py-4 text-right space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                      <td className="py-4 text-right space-x-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleEditUser(u._id, u.email, u.role)} title="Edit Role">
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleResetPassword(u._id, u.email)} title="Reset Password">
                           <Key className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteUser(u._id, u.email)} title="Delete User">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </td>
