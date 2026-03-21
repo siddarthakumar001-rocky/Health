@@ -71,8 +71,21 @@ exports.updateUser = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ message: "User deleted successfully" });
+    const userId = req.params.id;
+    const OnboardingData = require('../models/OnboardingData');
+    const Device = require('../models/Device');
+    const Alert = require('../models/Alert');
+
+    // Cascade delete all related data
+    await Promise.all([
+      User.findByIdAndDelete(userId),
+      OnboardingData.deleteMany({ user_id: userId }),
+      Feedback.deleteMany({ user_id: userId }),
+      Device.deleteMany({ user_id: userId }),
+      Alert.deleteMany({ user_id: userId }),
+    ]);
+
+    res.json({ message: "User and all related data deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
