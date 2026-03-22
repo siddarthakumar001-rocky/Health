@@ -44,7 +44,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="px-4 py-3">
             <div className="flex items-center gap-2">
               <Heart className="h-5 w-5 text-sidebar-primary" />
-              {!collapsed && <span className="font-display text-sm font-bold text-sidebar-foreground">HealthPulse</span>}
+              {!collapsed && <span className="font-display text-sm font-bold text-sidebar-foreground">HealthPulse AI</span>}
             </div>
           </SidebarGroupLabel>
           <SidebarGroupContent>
