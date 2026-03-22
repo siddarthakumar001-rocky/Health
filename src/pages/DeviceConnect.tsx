@@ -1,81 +1,88 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Smartphone, Loader2, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Wifi, WifiOff, Smartphone } from "lucide-react";
 import { api } from "@/services/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
 export default function DeviceConnect() {
   const [deviceId, setDeviceId] = useState("");
-  const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
+  const [isConnecting, setIsConnecting] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleConnect = async () => {
+  const handleConnect = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!user || !deviceId.trim()) return;
-    setStatus("connecting");
+    
+    setIsConnecting(true);
     try {
-      await api.post("/api/devices", {
-        user_id: user.id,
-        device_id: deviceId.trim(),
+      await api.post("/api/device/connect", {
+        userId: user.id || (user as any)._id,
+        deviceId: deviceId.trim(),
       });
-      setStatus("connected");
-      toast({ title: "Device connected!" });
+      toast({ title: "Device connected successfully!" });
       setTimeout(() => navigate("/dashboard"), 1500);
     } catch (err: any) {
-      setStatus("failed");
-      toast({ title: "Connection failed", description: err.message, variant: "destructive" });
+      toast({ 
+        title: "Connection failed", 
+        description: err.response?.data?.error || "Could not link device. Ensure the Device ID is correct.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsConnecting(false);
     }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-premium border-none">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <Smartphone className="h-8 w-8 text-primary" />
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-teal-50">
+            <Smartphone className="h-10 w-10 text-teal-600" />
           </div>
-          <CardTitle className="font-display text-2xl">Connect Your Device</CardTitle>
+          <CardTitle className="font-display text-2xl font-bold">Connect Your Device</CardTitle>
           <CardDescription>Enter your ESP32 device ID to start monitoring</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label>Device ID</Label>
-            <Input value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="e.g. ESP32-HEALTH-001" />
-          </div>
+        <CardContent>
+          <form onSubmit={handleConnect} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="deviceId" className="text-sm font-semibold">Device ID</Label>
+              <Input
+                id="deviceId"
+                placeholder="e.g. ESP32-HEALTH-001"
+                className="rounded-xl h-12"
+                value={deviceId}
+                onChange={(e) => setDeviceId(e.target.value)}
+              />
+            </div>
 
-          <div className="flex items-center justify-center gap-3 rounded-lg border p-4">
-            {status === "connected" ? (
-              <>
-                <Wifi className="h-5 w-5 text-stress-low" />
-                <Badge className="bg-stress-low text-white">Connected</Badge>
-              </>
-            ) : status === "failed" ? (
-              <>
-                <WifiOff className="h-5 w-5 text-destructive" />
-                <Badge variant="destructive">Disconnected</Badge>
-              </>
-            ) : (
-              <>
-                <WifiOff className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Not connected</span>
-              </>
-            )}
-          </div>
+            <div className="flex items-center justify-center gap-2 py-2 text-muted-foreground">
+              <WifiOff className="h-4 w-4" />
+              <span className="text-xs font-semibold">Not connected</span>
+            </div>
 
-          <Button onClick={handleConnect} className="w-full" disabled={!deviceId.trim() || status === "connecting"}>
-            {status === "connecting" ? "Connecting..." : status === "connected" ? "Connected ✓" : "Connect Device"}
-          </Button>
+            <Button 
+              type="submit"
+              className="w-full h-12 rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-bold transition-all shadow-md active:scale-95" 
+              disabled={isConnecting || !deviceId.trim()}
+            >
+              {isConnecting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Connect Device"}
+            </Button>
 
-          <Button variant="ghost" className="w-full" onClick={() => navigate("/dashboard")}>
-            Skip for now
-          </Button>
+            <button 
+              type="button"
+              className="w-full text-center text-sm font-bold text-muted-foreground hover:text-foreground transition-colors" 
+              onClick={() => navigate("/dashboard")}
+            >
+              Skip for now
+            </button>
+          </form>
         </CardContent>
       </Card>
     </div>

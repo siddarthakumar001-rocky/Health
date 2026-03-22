@@ -52,21 +52,21 @@ export default function Dashboard() {
       
       setHasDevice(true);
       setDevice(devices[0]);
-      const data = await api.get("/api/health");
+      // Use the new IoT endpoint for the current user
+      const data = await api.get(`/api/device/${user.id}`);
       if (data?.length) {
-        setReadings(data.reverse());
+        setReadings(data); // Backend already reversed it for us
         setLatest(data[data.length - 1]);
       }
     } catch(err) {
       console.error("Dashboard data fetch failed:", err);
-      // setHasDevice(false); // Don't force false if it was just a transient error
     }
   };
 
   useEffect(() => {
     if (!user) return;
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 5000); // Poll every 5 seconds as requested
     return () => clearInterval(interval);
   }, [user]);
 
@@ -205,10 +205,6 @@ export default function Dashboard() {
                 <div className="flex flex-col md:flex-row gap-8 items-center">
                   <div className="flex-shrink-0 relative">
                     <StressGauge score={aiAnalysis?.severity || stressScore} />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
-                      <span className="text-3xl font-bold font-display">{aiAnalysis?.severity || stressScore}</span>
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Severity</span>
-                    </div>
                   </div>
                   
                   <div className="flex-1 space-y-4 text-center md:text-left">

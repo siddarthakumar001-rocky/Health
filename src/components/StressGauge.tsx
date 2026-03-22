@@ -43,14 +43,17 @@ export default function StressGauge({ score }: StressGaugeProps) {
             strokeLinecap="round"
           />
         )}
-        <text x={cx} y={cy - 15} textAnchor="middle" className="text-2xl font-bold fill-foreground" style={{ fontSize: 28, fontFamily: "Space Grotesk" }}>
+        <text x={cx} y={cy - 10} textAnchor="middle" className="text-3xl font-bold fill-foreground" style={{ fontSize: 32, fontWeight: '800' }}>
           {score}
         </text>
-        <text x={cx} y={cy + 5} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 12 }}>
+        <text x={cx} y={cy + 5} textAnchor="middle" className="fill-muted-foreground/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
           / 100
         </text>
+        <text x={cx} y={cy + 18} textAnchor="middle" className="fill-muted-foreground font-bold tracking-tighter" style={{ fontSize: 8 }}>
+          SEVERITY
+        </text>
       </svg>
-      <span className="mt-1 text-sm font-semibold capitalize" style={{ color }}>{level} Stress</span>
+      <span className="mt-2 text-sm font-bold" style={{ color }}>{level} Stress</span>
     </div>
   );
 }

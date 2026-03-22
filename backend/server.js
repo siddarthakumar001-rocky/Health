@@ -30,6 +30,7 @@ app.use((req, res, next) => {
 app.use("/api/alerts", alertRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/devices", deviceRoutes);
+app.use("/api/device", deviceRoutes); // Alias for IoT integration consistency
 app.use("/api/health", healthRoutes);
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/feedback", feedbackRoutes);

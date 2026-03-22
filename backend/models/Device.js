@@ -1,15 +1,21 @@
 const mongoose = require('mongoose');
 
-const deviceSchema = new mongoose.Schema({
-  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  device_id: { type: String, required: true },
-  status: { type: String, default: 'connected' },
+const deviceRegistrySchema = new mongoose.Schema({
+  deviceId: { 
+    type: String, 
+    required: true, 
+    unique: true 
+  },
+  status: { 
+    type: String, 
+    default: 'offline' 
+  },
+  lastSeen: { 
+    type: Date, 
+    default: Date.now 
+  }
 }, { 
-  strict: false, 
   timestamps: true 
 });
 
-// Ensure a user can't have duplicate device records for the same device_id
-deviceSchema.index({ user_id: 1, device_id: 1 }, { unique: true });
-
-module.exports = mongoose.model('Device', deviceSchema);
+module.exports = mongoose.model('Device', deviceRegistrySchema);
