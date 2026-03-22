@@ -10,6 +10,7 @@ const healthRoutes = require("./routes/healthRoutes");
 const onboardingRoutes = require("./routes/onboardingRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/ai", aiRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)

@@ -49,8 +49,23 @@ export default function AdminDashboard() {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUserHealth, setSelectedUserHealth] = useState<any>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleViewHealth = async (userId: string, email: string) => {
+    try {
+      const result = await api.get(`/api/admin/users/${userId}/health`);
+      if (result && result.length > 0) {
+        setSelectedUserHealth({ email, ...result[0] });
+        toast({ title: "Health Data Loaded", description: `Showing latest analysis for ${email}` });
+      } else {
+        toast({ title: "No Data", description: "This user hasn't performed any AI analysis yet.", variant: "default" });
+      }
+    } catch (err: any) {
+      toast({ title: "Fetch Failed", description: err.message, variant: "destructive" });
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -251,6 +266,9 @@ export default function AdminDashboard() {
                         {format(new Date(u.createdAt), "MMM d, yyyy")}
                       </td>
                       <td className="py-4 text-right space-x-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleViewHealth(u._id, u.email)} title="View Health Analysis">
+                          <Activity className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleEditUser(u._id, u.email, u.role)} title="Edit Role">
                           <Edit2 className="h-4 w-4" />
                         </Button>
@@ -268,6 +286,56 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Health Analysis Display */}
+        {selectedUserHealth && (
+          <Card className="border-primary/20 bg-primary/5 animate-in fade-in slide-in-from-top-4">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="text-lg">AI Health Analysis: {selectedUserHealth.email}</CardTitle>
+                <CardDescription>Latest prediction from {format(new Date(selectedUserHealth.timestamp), "PPP p")}</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedUserHealth(null)}>Close</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Condition</p>
+                  <p className="text-xl font-bold text-primary">{selectedUserHealth.condition}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Severity</p>
+                  <p className="text-xl font-bold">{selectedUserHealth.severity}/100</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Risk Level</p>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                    selectedUserHealth.riskLevel === 'high' ? 'bg-destructive/10 text-destructive' : 
+                    selectedUserHealth.riskLevel === 'medium' ? 'bg-orange-500/10 text-orange-600' : 
+                    'bg-green-500/10 text-green-600'
+                  }`}>
+                    {selectedUserHealth.riskLevel}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Critical Flags</p>
+                  <p className="text-sm font-medium">{selectedUserHealth.criticalFlags?.join(', ') || 'None'}</p>
+                </div>
+              </div>
+
+              {selectedUserHealth.alerts?.length > 0 && (
+                <div className="mt-6 space-y-2">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Active Alerts</p>
+                  {selectedUserHealth.alerts.map((a: any, i: number) => (
+                    <div key={i} className="text-xs p-2 rounded bg-destructive/10 text-destructive border border-destructive/20">
+                      {a.message}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Feedback Monitor */}
         <Card>

@@ -128,6 +128,17 @@ exports.exportFeedbackCSV = async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=feedback.csv');
     res.status(200).send(csv);
+    res.status(200).send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getUserHealthAnalysis = async (req, res) => {
+  try {
+    const HealthAnalysis = require('../models/HealthAnalysis');
+    const analyses = await HealthAnalysis.find({ user_id: req.params.userId }).sort({ timestamp: -1 });
+    res.json(analyses);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -20,5 +20,6 @@ router.get('/export/feedbacks', adminController.exportFeedbackCSV);
 router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.deleteUser);
 router.patch('/users/:id/password', adminController.updatePassword);
+router.get('/users/:userId/health', adminController.getUserHealthAnalysis);
 
 module.exports = router;
