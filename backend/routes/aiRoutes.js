@@ -30,7 +30,7 @@ router.post('/analyze', authMiddleware, async (req, res) => {
     const prediction = predictCondition(onboarding, sensorData);
 
     // 4. Get Ayurvedic Recommendations
-    const ayurveda = getAyurvedicRecommendations(prediction.condition);
+    const ayurveda = getAyurvedicRecommendations(prediction.condition, prediction.dominantDosha);
 
     // 5. Build and Save Analysis Result
     const analysisResult = new HealthAnalysis({
@@ -38,6 +38,7 @@ router.post('/analyze', authMiddleware, async (req, res) => {
       condition: prediction.condition,
       severity: prediction.severity,
       riskLevel: prediction.riskLevel,
+      dominantDosha: prediction.dominantDosha,
       recommendations: ayurveda,
       alerts: ruleResults.alerts,
       criticalFlags: ruleResults.criticalFlags,

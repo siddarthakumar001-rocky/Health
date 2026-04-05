@@ -34,7 +34,7 @@ const checkCriticalConditions = (onboardingData, sensorData = {}) => {
   const neuroSymptoms = onboardingData.common_symptoms || [];
   if (
     onboardingData.stroke_history === true && 
-    (neuroSymptoms.includes('Numbness') || neuroSymptoms.includes('Tingling Sensation') || neuroSymptoms.includes('Dizziness'))
+    (neuroSymptoms.includes('numbness') || neuroSymptoms.includes('tingling') || neuroSymptoms.includes('dizziness'))
   ) {
     criticalFlags.push('NEUROLOGICAL_RISK');
     alerts.push({
@@ -45,7 +45,7 @@ const checkCriticalConditions = (onboardingData, sensorData = {}) => {
   }
 
   // 3. RESPIRATORY DISTRESS CHECK
-  if (onboardingData.conditions && onboardingData.conditions.includes('Asthma')) {
+  if (onboardingData.conditions && onboardingData.conditions.includes('asthma')) {
     if (sensorData.spo2 && sensorData.spo2 < 92) {
       criticalFlags.push('RESPIRATORY_DISTRESS');
       alerts.push({

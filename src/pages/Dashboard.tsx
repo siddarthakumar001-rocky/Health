@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Heart, Thermometer, Wind, Brain, TrendingUp, Clock, Smartphone, Bell, FileText, Loader2, Check } from "lucide-react";
+import { Heart, Thermometer, Wind, Brain, TrendingUp, Clock, Smartphone, Bell, FileText, Loader2, Check, HelpCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import DashboardLayout from "@/components/DashboardLayout";
 import StressGauge from "@/components/StressGauge";
@@ -11,6 +11,8 @@ import { useAuth } from "@/lib/auth";
 import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "react-i18next";
+import HowToUseModal from "@/components/HowToUseModal";
 
 interface HealthReading {
   heart_rate: number;
@@ -25,6 +27,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [readings, setReadings] = useState<HealthReading[]>([]);
   const [latest, setLatest] = useState<HealthReading | null>(null);
   const [onboarding, setOnboarding] = useState<any>(null);
@@ -32,6 +35,16 @@ export default function Dashboard() {
   const [hasDevice, setHasDevice] = useState<boolean | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
+  // Show guide on first visit
+  useEffect(() => {
+    const seen = localStorage.getItem("healthpulse_guide_seen");
+    if (!seen) {
+      setShowGuide(true);
+      localStorage.setItem("healthpulse_guide_seen", "true");
+    }
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -52,10 +65,9 @@ export default function Dashboard() {
       
       setHasDevice(true);
       setDevice(devices[0]);
-      // Use the new IoT endpoint for the current user
       const data = await api.get(`/api/device/${user.id}`);
       if (data?.length) {
-        setReadings(data); // Backend already reversed it for us
+        setReadings(data);
         setLatest(data[data.length - 1]);
       }
     } catch(err) {
@@ -66,7 +78,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
     fetchData();
-    const interval = setInterval(fetchData, 5000); // Poll every 5 seconds as requested
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -82,12 +94,12 @@ export default function Dashboard() {
       });
       setAiAnalysis(result);
       toast({
-        title: "Analysis Complete",
-        description: `Your health status is: ${result.condition}`,
+        title: t("dashboard.analysisComplete"),
+        description: `${result.condition}`,
       });
     } catch (err: any) {
       toast({
-        title: "Analysis Failed",
+        title: t("dashboard.analysisFailed"),
         description: err.response?.data?.error || "Could not analyze health data",
         variant: "destructive"
       });
@@ -131,14 +143,22 @@ export default function Dashboard() {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight">Health Dashboard</h1>
-            <p className="text-muted-foreground">AI-powered health monitoring and predictive analysis.</p>
+            <h1 className="font-display text-3xl font-bold tracking-tight">{t("dashboard.title")}</h1>
+            <p className="text-muted-foreground">{t("dashboard.subtitle")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => setShowGuide(true)}
+              className="rounded-full px-5 h-11"
+            >
+              <HelpCircle className="mr-2 h-4 w-4" />
+              {t("landing.howToUse")}
+            </Button>
             {!aiAnalysis && onboarding && (
-              <Button onClick={handleAnalyze} disabled={isAnalyzing} className="rounded-full shadow-lg shadow-primary/20">
+              <Button onClick={handleAnalyze} disabled={isAnalyzing} className="rounded-full shadow-lg shadow-primary/20 h-11">
                 {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
-                Analyze My Health
+                {t("dashboard.analyzeHealth")}
               </Button>
             )}
           </div>
@@ -146,13 +166,13 @@ export default function Dashboard() {
             <div className="flex flex-col items-start md:items-end gap-1.5 bg-muted/50 p-3 rounded-xl border border-border/50">
               <div className="flex items-center gap-2 text-xs font-semibold">
                 <Smartphone className="h-3.5 w-3.5 text-primary" />
-                <span>Device: <span className="text-foreground">{device?.device_id || "Active Wearable"}</span></span>
+                <span>{t("dashboard.device")}: <span className="text-foreground">{device?.device_id || "Active Wearable"}</span></span>
               </div>
               {lastUpdated && (
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
                   <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
                   <Clock className="h-3 w-3" />
-                  <span>Last Sync: {lastUpdated}</span>
+                  <span>{t("dashboard.lastSync")}: {lastUpdated}</span>
                 </div>
               )}
             </div>
@@ -164,19 +184,19 @@ export default function Dashboard() {
             <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
               <Smartphone className="h-10 w-10 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold mb-3">No Device Connected</h2>
+            <h2 className="text-2xl font-bold mb-3">{t("dashboard.noDevice")}</h2>
             <p className="max-w-md mx-auto mb-8 text-muted-foreground leading-relaxed">
-              Your health dashboard is ready! Connect your ESP32 wearable to start tracking heart rate, SpO2, and temperature in real-time.
+              {t("dashboard.noDeviceDesc")}
             </p>
-            <Button size="lg" onClick={() => navigate("/device-connect")} className="rounded-full px-8 shadow-xl shadow-primary/20">
-              Connect a Device
+            <Button size="lg" onClick={() => navigate("/device-connect")} className="rounded-full px-8 h-14 text-base shadow-xl shadow-primary/20">
+              {t("dashboard.connectDevice")}
             </Button>
           </div>
         ) : hasDevice === null ? (
           <div className="flex h-96 items-center justify-center">
             <div className="flex flex-col items-center gap-4">
               <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="text-sm font-medium animate-pulse text-muted-foreground">Syncing your health data...</p>
+              <p className="text-sm font-medium animate-pulse text-muted-foreground">{t("dashboard.syncing")}</p>
             </div>
           </div>
         ) : (
@@ -199,7 +219,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* AI Health Overview Card (Top Level Insight) */}
+            {/* AI Health Overview Card */}
             <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-primary/5 via-primary/10 to-transparent p-1">
               <div className="bg-card rounded-[inherit] p-6">
                 <div className="flex flex-col md:flex-row gap-8 items-center">
@@ -210,19 +230,26 @@ export default function Dashboard() {
                   <div className="flex-1 space-y-4 text-center md:text-left">
                     <div>
                       <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
-                        <h2 className="text-2xl font-bold">{aiAnalysis?.condition || "Analyzing..."}</h2>
+                        <h2 className="text-2xl font-bold">{aiAnalysis?.condition || t("dashboard.analyzing")}</h2>
                         {aiAnalysis && (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            aiAnalysis.riskLevel === 'high' ? "bg-destructive/10 text-destructive" :
-                            aiAnalysis.riskLevel === 'medium' ? "bg-orange-500/10 text-orange-600" :
-                            "bg-green-500/10 text-green-600"
-                          }`}>
-                            {aiAnalysis.riskLevel} Risk
-                          </span>
+                          <div className="flex gap-2">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              aiAnalysis.riskLevel === 'high' ? "bg-destructive/10 text-destructive" :
+                              aiAnalysis.riskLevel === 'medium' ? "bg-orange-500/10 text-orange-600" :
+                              "bg-green-500/10 text-green-600"
+                            }`}>
+                              {aiAnalysis.riskLevel} {t("dashboard.risk")}
+                            </span>
+                            {aiAnalysis.dominantDosha && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                                {aiAnalysis.dominantDosha} Type
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                       <p className="text-muted-foreground text-sm max-w-md">
-                        Based on your {onboarding ? "onboarding assessment" : "health profile"} and {latest ? "real-time sensor data" : "lifestyle data"}.
+                        {t("dashboard.basedOn")}
                       </p>
                     </div>
                     
@@ -230,14 +257,14 @@ export default function Dashboard() {
                       <Button 
                         onClick={handleAnalyze} 
                         disabled={isAnalyzing} 
-                        className="rounded-full px-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                        className="rounded-full px-6 h-11 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
                       >
                         {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
-                        Re-run AI Analysis
+                        {t("dashboard.rerunAnalysis")}
                       </Button>
-                      <Button variant="outline" className="rounded-full px-6" onClick={() => navigate("/report-upload")}>
+                      <Button variant="outline" className="rounded-full px-6 h-11" onClick={() => navigate("/report-upload")}>
                         <FileText className="mr-2 h-4 w-4" />
-                        View Full Report
+                        {t("dashboard.viewReport")}
                       </Button>
                     </div>
                   </div>
@@ -249,53 +276,53 @@ export default function Dashboard() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-card to-destructive/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Heart Rate</CardTitle>
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("dashboard.heartRate")}</CardTitle>
                   <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center">
                     <Heart className="h-4 w-4 text-destructive" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-4xl font-bold font-display">{latest?.heart_rate || "0"}</div>
-                  <p className="text-[10px] font-bold text-destructive mt-1 uppercase">BPM</p>
+                  <p className="text-[10px] font-bold text-destructive mt-1 uppercase">{t("dashboard.bpm")}</p>
                 </CardContent>
               </Card>
 
               <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-card to-blue-500/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">SpO2</CardTitle>
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("dashboard.spo2")}</CardTitle>
                   <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
                     <Wind className="h-4 w-4 text-blue-500" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-4xl font-bold font-display">{latest?.spo2 || "0"}</div>
-                  <p className="text-[10px] font-bold text-blue-500 mt-1 uppercase">Oxygen Level</p>
+                  <p className="text-[10px] font-bold text-blue-500 mt-1 uppercase">{t("dashboard.oxygenLevel")}</p>
                 </CardContent>
               </Card>
 
               <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-card to-orange-500/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Body Temp</CardTitle>
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("dashboard.bodyTemp")}</CardTitle>
                   <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
                     <Thermometer className="h-4 w-4 text-orange-500" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-4xl font-bold font-display">{latest?.temperature?.toFixed(1) || "0.0"}</div>
-                  <p className="text-[10px] font-bold text-orange-500 mt-1 uppercase">Celsius</p>
+                  <p className="text-[10px] font-bold text-orange-500 mt-1 uppercase">{t("dashboard.celsius")}</p>
                 </CardContent>
               </Card>
 
               <Card className="overflow-hidden border-none shadow-premium bg-gradient-to-br from-card to-primary/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Daily Health Score</CardTitle>
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("dashboard.healthScore")}</CardTitle>
                   <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                     <TrendingUp className="h-4 w-4 text-primary" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-4xl font-bold font-display">{healthScore}</div>
-                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tighter">Based on AI Vitals Analysis</p>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tighter">{t("dashboard.basedOnAI")}</p>
                 </CardContent>
               </Card>
             </div>
@@ -309,11 +336,17 @@ export default function Dashboard() {
                       <Heart className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg">Ayurvedic Remedies</h3>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Traditional Herbal Support</p>
+                      <h3 className="font-bold text-lg">{t("dashboard.ayurvedic")}</h3>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{t("dashboard.herbalSupport")}</p>
                     </div>
                   </div>
                   <div className="space-y-4">
+                    {aiAnalysis.recommendations.doshaAdvice && (
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 mb-4 animate-in slide-in-from-top-2 duration-500">
+                        <p className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Prakriti Analysis</p>
+                        <p className="text-sm font-medium leading-relaxed">{aiAnalysis.recommendations.doshaAdvice}</p>
+                      </div>
+                    )}
                     {aiAnalysis.recommendations.medicines?.map((m: any, i: number) => (
                       <div key={i} className="group p-3 rounded-xl bg-background/50 hover:bg-primary/5 transition-colors border border-border/20">
                         <p className="font-bold text-sm text-primary group-hover:translate-x-1 transition-transform">{m.name}</p>
@@ -329,13 +362,13 @@ export default function Dashboard() {
                       <Brain className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg">Lifestyle & Diet</h3>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Holistic Wellness Plan</p>
+                      <h3 className="font-bold text-lg">{t("dashboard.lifestyle")}</h3>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{t("dashboard.wellnessPlan")}</p>
                     </div>
                   </div>
                   <div className="space-y-6">
                     <div>
-                      <p className="text-[10px] font-bold uppercase text-green-600 mb-3 tracking-widest">Lifestyle Tips</p>
+                      <p className="text-[10px] font-bold uppercase text-green-600 mb-3 tracking-widest">{t("dashboard.lifestyleTips")}</p>
                       <ul className="space-y-3">
                         {aiAnalysis.recommendations.lifestyleTips?.map((tip: string, i: number) => (
                           <li key={i} className="text-sm flex gap-2 text-foreground/80">
@@ -346,7 +379,7 @@ export default function Dashboard() {
                       </ul>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase text-green-600 mb-3 tracking-widest">Dietary Advice</p>
+                      <p className="text-[10px] font-bold uppercase text-green-600 mb-3 tracking-widest">{t("dashboard.dietAdvice")}</p>
                       <ul className="space-y-3">
                         {aiAnalysis.recommendations.dietTips?.map((tip: string, i: number) => (
                           <li key={i} className="text-sm flex gap-2 text-foreground/80">
@@ -363,7 +396,7 @@ export default function Dashboard() {
                 <div className="md:col-span-2">
                   <div className="bg-muted/30 p-4 rounded-xl border border-border/50">
                     <p className="text-[10px] leading-relaxed text-muted-foreground italic">
-                      <span className="font-bold uppercase not-italic mr-2">Medical Disclaimer:</span>
+                      <span className="font-bold uppercase not-italic mr-2">{t("dashboard.disclaimer")}</span>
                       {aiAnalysis.recommendations.disclaimer}
                     </p>
                   </div>
@@ -374,7 +407,7 @@ export default function Dashboard() {
             {/* Charts */}
             <div className="grid gap-6 md:grid-cols-2">
               <Card className="p-6 bg-card/50 border-none shadow-premium">
-                <p className="mb-6 text-xs font-bold uppercase tracking-widest text-muted-foreground">Heart Rate Trend (BPM)</p>
+                <p className="mb-6 text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("dashboard.hrTrend")}</p>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
@@ -389,7 +422,7 @@ export default function Dashboard() {
               </Card>
 
               <Card className="p-6 bg-card/50 border-none shadow-premium">
-                <p className="mb-6 text-xs font-bold uppercase tracking-widest text-muted-foreground">AI Health metrics comparison</p>
+                <p className="mb-6 text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("dashboard.aiMetrics")}</p>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
@@ -407,11 +440,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Feedback Section - Always Visible */}
+        {/* Feedback Section */}
         <div className="pt-20">
           <Feedback />
         </div>
       </div>
+
+      <HowToUseModal open={showGuide} onOpenChange={setShowGuide} />
     </DashboardLayout>
   );
 }

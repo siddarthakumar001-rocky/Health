@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/context/ThemeContext";
 import { Moon, Sun } from "lucide-react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-lg">
             <SidebarTrigger />
             <div className="flex items-center gap-2 md:gap-3">
+              <LanguageSwitcher />
               <ThemeToggle />
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/alerts"><Bell className="h-4 w-4" /></Link>

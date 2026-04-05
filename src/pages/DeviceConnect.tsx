@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/services/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 
 export default function DeviceConnect() {
   const [deviceId, setDeviceId] = useState("");
@@ -15,6 +16,7 @@ export default function DeviceConnect() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,12 +28,12 @@ export default function DeviceConnect() {
         userId: user.id || (user as any)._id,
         deviceId: deviceId.trim(),
       });
-      toast({ title: "Device connected successfully!" });
+      toast({ title: t("deviceConnect.success") });
       setTimeout(() => navigate("/dashboard"), 1500);
     } catch (err: any) {
       toast({ 
-        title: "Connection failed", 
-        description: err.response?.data?.error || "Could not link device. Ensure the Device ID is correct.", 
+        title: t("deviceConnect.failed"), 
+        description: err.response?.data?.error || "Could not link device.", 
         variant: "destructive" 
       });
     } finally {
@@ -46,16 +48,16 @@ export default function DeviceConnect() {
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-teal-50">
             <Smartphone className="h-10 w-10 text-teal-600" />
           </div>
-          <CardTitle className="font-display text-2xl font-bold">Connect Your Device</CardTitle>
-          <CardDescription>Enter your ESP32 device ID to start monitoring</CardDescription>
+          <CardTitle className="font-display text-2xl font-bold">{t("deviceConnect.title")}</CardTitle>
+          <CardDescription>{t("deviceConnect.subtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleConnect} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="deviceId" className="text-sm font-semibold">Device ID</Label>
+              <Label htmlFor="deviceId" className="text-sm font-semibold">{t("deviceConnect.deviceIdLabel")}</Label>
               <Input
                 id="deviceId"
-                placeholder="e.g. ESP32-HEALTH-001"
+                placeholder={t("deviceConnect.placeholder")}
                 className="rounded-xl h-12"
                 value={deviceId}
                 onChange={(e) => setDeviceId(e.target.value)}
@@ -64,15 +66,15 @@ export default function DeviceConnect() {
 
             <div className="flex items-center justify-center gap-2 py-2 text-muted-foreground">
               <WifiOff className="h-4 w-4" />
-              <span className="text-xs font-semibold">Not connected</span>
+              <span className="text-xs font-semibold">{t("deviceConnect.notConnected")}</span>
             </div>
 
             <Button 
               type="submit"
-              className="w-full h-12 rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-bold transition-all shadow-md active:scale-95" 
+              className="w-full h-14 rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-bold text-base transition-all shadow-md active:scale-95" 
               disabled={isConnecting || !deviceId.trim()}
             >
-              {isConnecting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Connect Device"}
+              {isConnecting ? <Loader2 className="h-5 w-5 animate-spin" /> : t("deviceConnect.connectButton")}
             </Button>
 
             <button 
@@ -80,7 +82,7 @@ export default function DeviceConnect() {
               className="w-full text-center text-sm font-bold text-muted-foreground hover:text-foreground transition-colors" 
               onClick={() => navigate("/dashboard")}
             >
-              Skip for now
+              {t("deviceConnect.skip")}
             </button>
           </form>
         </CardContent>

@@ -2,6 +2,7 @@ import { LayoutDashboard, Map, Bell, FileText, User, Smartphone, LogOut, Heart }
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { useTranslation } from "react-i18next";
 import {
   Sidebar,
   SidebarContent,
@@ -17,12 +18,12 @@ import {
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Map", url: "/map", icon: Map },
-  { title: "Alerts", url: "/alerts", icon: Bell },
-  { title: "Reports", url: "/report-upload", icon: FileText },
-  { title: "Device", url: "/device-connect", icon: Smartphone },
-  { title: "Profile", url: "/profile", icon: User },
+  { titleKey: "nav.dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { titleKey: "nav.map", url: "/map", icon: Map },
+  { titleKey: "nav.alerts", url: "/alerts", icon: Bell },
+  { titleKey: "nav.reports", url: "/report-upload", icon: FileText },
+  { titleKey: "nav.device", url: "/device-connect", icon: Smartphone },
+  { titleKey: "nav.profile", url: "/profile", icon: User },
 ];
 
 export function AppSidebar() {
@@ -31,6 +32,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,17 +46,17 @@ export function AppSidebar() {
           <SidebarGroupLabel className="px-4 py-3">
             <div className="flex items-center gap-2">
               <Heart className="h-5 w-5 text-sidebar-primary" />
-              {!collapsed && <span className="font-display text-sm font-bold text-sidebar-foreground">HealthPulse AI</span>}
+              {!collapsed && <span className="font-display text-sm font-bold text-sidebar-foreground">{t("landing.appName")}</span>}
             </div>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.titleKey}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
                       <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && <span>{t(item.titleKey)}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -66,9 +68,10 @@ export function AppSidebar() {
       <SidebarFooter className="p-2">
         <Button variant="ghost" size={collapsed ? "icon" : "default"} onClick={handleSignOut} className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent">
           <LogOut className="h-4 w-4" />
-          {!collapsed && <span className="ml-2">Sign Out</span>}
+          {!collapsed && <span className="ml-2">{t("nav.signOut")}</span>}
         </Button>
       </SidebarFooter>
     </Sidebar>
   );
 }
+

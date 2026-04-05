@@ -12,6 +12,7 @@ import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
 import DeviceConnect from "./pages/DeviceConnect";
 import ReportUpload from "./pages/ReportUpload";
+import AiSuggestions from "./pages/AiSuggestions";
 import Dashboard from "./pages/Dashboard";
 import MapPage from "./pages/MapPage";
 import Alerts from "./pages/Alerts";
@@ -40,6 +41,7 @@ export default function App() {
                 <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
                 <Route path="/device-connect" element={<ProtectedRoute><DeviceConnect /></ProtectedRoute>} />
                 <Route path="/report-upload" element={<ProtectedRoute><ReportUpload /></ProtectedRoute>} />
+                <Route path="/ai-suggestions" element={<ProtectedRoute><AiSuggestions /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
                 <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />

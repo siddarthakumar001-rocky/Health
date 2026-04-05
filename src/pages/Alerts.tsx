@@ -7,9 +7,10 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Bell, Check } from "lucide-react";
 import { api } from "@/services/api";
 import { useAuth } from "@/lib/auth";
+import { useTranslation } from "react-i18next";
 
 interface Alert {
-  _id: string; // MongoDB uses _id
+  _id: string;
   message: string;
   severity: string;
   resolved: boolean;
@@ -18,6 +19,7 @@ interface Alert {
 
 export default function Alerts() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [filter, setFilter] = useState("all");
 
@@ -29,7 +31,6 @@ export default function Alerts() {
     };
     fetchAlerts();
     
-    // Polling as a fallback for real-time
     const interval = setInterval(fetchAlerts, 10000);
     return () => clearInterval(interval);
   }, [user, filter]);
@@ -53,16 +54,16 @@ export default function Alerts() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-2xl font-bold">Alerts</h1>
-            <p className="text-sm text-muted-foreground">Health notifications and warnings</p>
+            <h1 className="font-display text-2xl font-bold">{t("alerts.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("alerts.subtitle")}</p>
           </div>
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-              <SelectItem value="moderate">Moderate</SelectItem>
-              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="all">{t("alerts.all")}</SelectItem>
+              <SelectItem value="low">{t("alerts.low")}</SelectItem>
+              <SelectItem value="moderate">{t("alerts.moderate")}</SelectItem>
+              <SelectItem value="high">{t("alerts.high")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -70,7 +71,7 @@ export default function Alerts() {
         {alerts.length === 0 ? (
           <Card className="p-12 text-center">
             <Bell className="mx-auto h-12 w-12 text-muted-foreground/30" />
-            <p className="mt-4 text-muted-foreground">No alerts yet</p>
+            <p className="mt-4 text-muted-foreground">{t("alerts.noAlerts")}</p>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -83,11 +84,11 @@ export default function Alerts() {
                     <p className="text-xs text-muted-foreground">{new Date(alert.createdAt).toLocaleString()}</p>
                   </div>
                   {!alert.resolved && (
-                    <Button size="sm" variant="outline" onClick={() => resolveAlert(alert._id)}>
-                      <Check className="mr-1 h-3 w-3" /> Resolve
+                    <Button size="sm" variant="outline" onClick={() => resolveAlert(alert._id)} className="h-10 rounded-xl">
+                      <Check className="mr-1 h-3 w-3" /> {t("alerts.resolve")}
                     </Button>
                   )}
-                  {alert.resolved && <Badge variant="outline">Resolved</Badge>}
+                  {alert.resolved && <Badge variant="outline">{t("alerts.resolved")}</Badge>}
                 </CardContent>
               </Card>
             ))}

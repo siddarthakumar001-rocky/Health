@@ -5,10 +5,12 @@ const healthAnalysisSchema = new mongoose.Schema({
   condition: { type: String, required: true },
   severity: { type: Number, required: true }, // 0-100
   riskLevel: { type: String, enum: ['low', 'medium', 'high'], default: 'low' },
+  dominantDosha: { type: String },
   recommendations: {
     medicines: [{ name: String, benefit: String }],
     lifestyleTips: [String],
     dietTips: [String],
+    doshaAdvice: String,
     disclaimer: String
   },
   alerts: [{

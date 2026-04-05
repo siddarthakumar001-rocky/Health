@@ -1,6 +1,7 @@
 /**
- * Ayurvedic Suggestion Engine
+ * Enhanced Ayurvedic Suggestion Engine
  * Maps health conditions to traditional Ayurvedic remedies and lifestyle tips.
+ * Now includes support for Dominant Dosha-specific advice.
  */
 
 const DISCLOSURE = "NOTE: These are holistic wellness suggestions based on traditional Ayurvedic principles. They are not a substitute for professional medical advice, diagnosis, or treatment. Always consult a certified healthcare practitioner before starting any new supplement or treatment.";
@@ -86,6 +87,38 @@ const MAPPINGS = {
       "Replace refined sugar with natural sweeteners like Jaggery in moderation."
     ]
   },
+  "Respiratory Issue": {
+    medicines: [
+      { name: "Vasavaleha", benefit: "Effective for respiratory health and clearing congestion." },
+      { name: "Mulethi (Licorice)", benefit: "Soothes the throat and respiratory tract." },
+      { name: "Trikatu", benefit: "Speeds up metabolism and clears mucus." }
+    ],
+    lifestyleTips: [
+      "Practice 'Bhastrika' Pranayama for better lung capacity.",
+      "Avoid exposure to cold winds and dust.",
+      "Steam inhalation with eucalyptus oil."
+    ],
+    dietTips: [
+      "Avoid curd, cold drinks, and heavy dairy in the evening.",
+      "Drink warm decoctions of ginger and honey."
+    ]
+  },
+  "Digestive Disorder": {
+    medicines: [
+      { name: "Hingwashtak Churna", benefit: "Improves digestion and relieves flatulence." },
+      { name: "Avipattikar Churna", benefit: "Helps in managing acidity and heartburn." },
+      { name: "Isabgol", benefit: "Natural fiber for healthy colon cleansing." }
+    ],
+    lifestyleTips: [
+      "Vajrasana (Thunderbolt pose) for 10 minutes after meals.",
+      "Chew food thoroughly and eat in a calm environment.",
+      "Avoid drinking cold water immediately after meals."
+    ],
+    dietTips: [
+      "Include buttermilk (takra) with a pinch of cumin and rock salt.",
+      "Favor freshly cooked, warm foods."
+    ]
+  },
   "Normal": {
     medicines: [
       { name: "Amritarishta", benefit: "General health tonic for longevity." }
@@ -100,10 +133,19 @@ const MAPPINGS = {
   }
 };
 
-const getAyurvedicRecommendations = (condition) => {
+const DOSHA_ADVICE = {
+  "Vata": "Focus on regularity, grounding exercises, and warm, moist foods. Keep yourself warm and avoid excessive multi-tasking.",
+  "Pitta": "Focus on cooling exercises, meditation, and sweet/bitter foods. Avoid excessive heat and spicy foods.",
+  "Kapha": "Focus on vigorous exercise, stay active, and favor light, spicy foods. Avoid excessive sleep and heavy/oily foods."
+};
+
+const getAyurvedicRecommendations = (condition, dominantDosha = "Vata") => {
   const recommendations = MAPPINGS[condition] || MAPPINGS["Normal"];
+  const doshaSpecificAdvice = DOSHA_ADVICE[dominantDosha] || DOSHA_ADVICE["Vata"];
+
   return {
     ...recommendations,
+    doshaAdvice: doshaSpecificAdvice,
     disclaimer: DISCLOSURE
   };
 };
